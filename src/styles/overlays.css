@@ -1,0 +1,154 @@
+/* Native <dialog> overlays shared by Dialog and Sheet.
+   The <dialog> fills the viewport and carries the scrim; the panel inside
+   animates. Enter and exit use @starting-style + allow-discrete transitions,
+   so no JS timers. Reduced motion is handled globally in globals.css. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: rgb(20 28 74 / 0.5);
+  color: var(--ink);
+  opacity: 0;
+  transition:
+    opacity 250ms ease-out,
+    display 250ms allow-discrete,
+    overlay 250ms allow-discrete;
+}
+.overlay[open] {
+  display: flex;
+  opacity: 1;
+}
+@starting-style {
+  .overlay[open] {
+    opacity: 0;
+  }
+}
+.overlay::backdrop {
+  background: transparent;
+}
+.overlay-panel {
+  transition: transform 300ms ease-out;
+}
+
+/* Dialog: centred card */
+.overlay[data-kind="dialog"] {
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.overlay[data-kind="dialog"] .overlay-panel {
+  transform: translateY(12px) scale(0.98);
+}
+/* Search spans the viewport width, keeping the input close to the header. */
+.overlay[data-kind="search"] {
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+}
+.overlay[data-kind="search"] > section {
+  transform: translateY(-12px);
+  transition: transform 250ms ease-out;
+}
+.overlay[data-kind="search"][open] > section {
+  transform: none;
+}
+@starting-style {
+  .overlay[data-kind="search"][open] > section {
+    transform: translateY(-12px);
+  }
+}
+.overlay[data-kind="dialog"][open] .overlay-panel {
+  transform: none;
+}
+@starting-style {
+  .overlay[data-kind="dialog"][open] .overlay-panel {
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+/* Sheet: bottom by default; "responsive" becomes a right drawer from 768px */
+.overlay[data-kind="sheet"] {
+  align-items: flex-end;
+  justify-content: center;
+}
+.overlay[data-kind="sheet"] .sheet-panel {
+  width: 100%;
+  max-height: 88dvh;
+  transform: translateY(100%);
+}
+.overlay[data-kind="sheet"][open] .sheet-panel {
+  transform: none;
+}
+@starting-style {
+  .overlay[data-kind="sheet"][open] .sheet-panel {
+    transform: translateY(100%);
+  }
+}
+
+.overlay[data-kind="sheet"][data-side="right"],
+.overlay[data-kind="sheet"][data-side="left"] {
+  align-items: stretch;
+}
+.overlay[data-kind="sheet"][data-side="right"] {
+  justify-content: flex-end;
+}
+.overlay[data-kind="sheet"][data-side="left"] {
+  justify-content: flex-start;
+}
+.overlay[data-kind="sheet"][data-side="right"] .sheet-panel,
+.overlay[data-kind="sheet"][data-side="left"] .sheet-panel {
+  height: 100%;
+  max-height: none;
+  max-width: 28rem;
+}
+.overlay[data-kind="sheet"][data-side="right"] .sheet-panel {
+  transform: translateX(100%);
+}
+.overlay[data-kind="sheet"][data-side="left"] .sheet-panel {
+  transform: translateX(-100%);
+}
+.overlay[data-kind="sheet"][data-side="right"][open] .sheet-panel,
+.overlay[data-kind="sheet"][data-side="left"][open] .sheet-panel {
+  transform: none;
+}
+@starting-style {
+  .overlay[data-kind="sheet"][data-side="right"][open] .sheet-panel {
+    transform: translateX(100%);
+  }
+  .overlay[data-kind="sheet"][data-side="left"][open] .sheet-panel {
+    transform: translateX(-100%);
+  }
+}
+
+.overlay[data-kind="sheet"][data-side="bottom"] .sheet-panel {
+  max-width: 36rem;
+}
+
+@media (min-width: 768px) {
+  .overlay[data-kind="sheet"][data-side="responsive"] {
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+  .overlay[data-kind="sheet"][data-side="responsive"] .sheet-panel {
+    height: 100%;
+    max-height: none;
+    max-width: 28rem;
+    transform: translateX(100%);
+  }
+  .overlay[data-kind="sheet"][data-side="responsive"][open] .sheet-panel {
+    transform: none;
+  }
+  @starting-style {
+    .overlay[data-kind="sheet"][data-side="responsive"][open] .sheet-panel {
+      transform: translateX(100%);
+    }
+  }
+}
