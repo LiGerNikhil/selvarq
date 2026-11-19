@@ -3,8 +3,10 @@ import { CheckoutFlow } from "@/components/commerce/checkout-flow";
 import { getSession } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";
 import { couponsRepository, usersRepository } from "@/lib/repo";
+import { getAdminSettings } from "@/lib/admin-store";
+import { privateMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Checkout" };
+export const metadata: Metadata = privateMetadata("Checkout", "/checkout");
 
 export default async function CheckoutPage() {
   const session = await getSession();
@@ -25,7 +27,7 @@ export default async function CheckoutPage() {
         city: defaultAddress?.city ?? "",
         state: defaultAddress?.state ?? "",
         pincode: defaultAddress?.pincode ?? "",
-      } : undefined} coupons={coupons} />
+      } : undefined} coupons={coupons} settings={getAdminSettings()} />
     </main>
   );
 }

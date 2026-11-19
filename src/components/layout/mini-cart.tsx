@@ -6,7 +6,6 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { useCartStore, selectCartCount, selectCartGroups } from "@/store/cart-store";
 import { useUIStore } from "@/store/ui-store";
-import { merchants, products } from "@/data";
 
 export function MiniCart() {
   const open = useUIStore((state) => state.cartOpen);
@@ -27,13 +26,12 @@ export function MiniCart() {
         <div className="space-y-7">
           {groups.map((group) => (
             <section key={group.merchantId} aria-label={`Items from ${group.merchantId}`}>
-              <h3 className="eyebrow mb-3">{merchants.find((merchant) => merchant.id === group.merchantId)?.name ?? group.merchantId}</h3>
+              <h3 className="eyebrow mb-3">{group.items[0]?.merchantName ?? "SELVARQ maker"}</h3>
               <ul className="space-y-4">
                 {group.items.map((item) => {
-                  const product = products.find((candidate) => candidate.id === item.productId);
                   return (
                     <li key={item.variantId} className="flex items-start gap-3 border-b border-line pb-4">
-                      <Link href={product ? `/product/${product.slug}` : "/shop"} onClick={() => setOpen(false)} className="flex-1">
+                      <Link href={item.slug ? `/product/${item.slug}` : "/shop"} onClick={() => setOpen(false)} className="flex-1">
                         <span className="block text-sm font-medium text-ink">{item.name}</span>
                         <span className="caption">{item.color} / {item.size} · Qty {item.quantity}</span>
                       </Link>

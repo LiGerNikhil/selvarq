@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MediaImage } from "@/components/ui/media-image";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/store/toast-store";
 import { merchantProfileSchema } from "@/lib/merchant-schemas";
@@ -45,7 +46,7 @@ export function MerchantProfileForm({ profile }: { profile: StoreProfile }) {
       <Input label="Store name" value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} required />
       <Input label="City" value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} required />
       <Textarea label="Brand story" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} required hint="Tell shoppers about your materials, making and point of view." />
-      <label className="flex flex-col gap-2 text-sm font-medium">Brand mark<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) setForm((current) => ({ ...current, logoId: `placeholder:store-logo-${file.name.replace(/[^a-z0-9]/gi, "-")}` })); }} /><span className="caption">Image preview and storage are simulated in this demo.</span></label>
+      <ImageUploader value={form.logoId ? [form.logoId] : []} onChange={(ids) => setForm((current) => ({ ...current, logoId: ids[0] ?? "" }))} folder="merchants" max={1} ratio="1/1" title="Brand mark" hint="A square image works best. Files upload to Cloudinary." />
       <Button type="submit" loading={busy}>Save storefront</Button>
     </div>
     <aside className="border border-line p-4"><p className="mb-3 text-sm font-medium text-indigo">Store preview</p><div className="mx-auto w-28"><MediaImage src={form.logoId} alt={`${form.displayName} brand mark`} ratio="1/1" sizes="112px" /></div><h3 className="mt-4 text-center font-display text-xl text-indigo">{form.displayName || "Your store"}</h3><p className="caption mt-1 text-center">{form.city}</p><p className="body mt-4">{form.bio || "Your brand story will appear here."}</p></aside>

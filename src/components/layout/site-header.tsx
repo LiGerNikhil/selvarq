@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, Heart, Search, ShoppingBag, UserRound } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
-import { categories, collections } from "@/data";
+import type { Category, Collection } from "@/data";
 import { selectCartCount, useCartStore } from "@/store/cart-store";
 import { useUIStore } from "@/store/ui-store";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -13,7 +13,18 @@ import { MobileMenu } from "./mobile-menu";
 import { MiniCart } from "./mini-cart";
 import { SearchOverlay } from "./search-overlay";
 
-export function SiteHeader() {
+export interface HeaderProduct {
+  id: string;
+  name: string;
+  slug: string;
+  tags: string[];
+}
+
+export function SiteHeader({ categories, collections, products }: {
+  categories: Category[];
+  collections: Collection[];
+  products: HeaderProduct[];
+}) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const setSearchOpen = useUIStore((state) => state.setSearchOpen);
   const setCartOpen = useUIStore((state) => state.setCartOpen);
@@ -40,7 +51,7 @@ export function SiteHeader() {
         <div className="page-container">
           <div className="grid h-[4.75rem] grid-cols-[1fr_auto_1fr] items-center gap-1 md:relative md:flex md:h-[5.5rem] md:justify-between md:gap-2">
             <div className="flex items-center gap-0 md:gap-1">
-              <MobileMenu />
+              <MobileMenu categories={categories} collections={collections} />
               <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search" className="grid size-10 place-items-center rounded-ui text-indigo hover:bg-pearl lg:hidden md:size-11">
                 <Search aria-hidden className="size-5" />
               </button>
@@ -122,7 +133,7 @@ export function SiteHeader() {
         ) : null}
       </header>
       <MiniCart />
-      <SearchOverlay />
+      <SearchOverlay products={products} categories={categories} />
     </>
   );
 }

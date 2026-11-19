@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Addresses", "/account/addresses");
+
 import { AddressManager } from "@/components/account/address-manager";
 import { getSession } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";

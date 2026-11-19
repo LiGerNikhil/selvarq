@@ -48,7 +48,7 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
               alt={`${name}, view ${active + 1}`}
               ratio="4/5"
               sizes="(min-width: 1024px) 48vw, 100vw"
-              priority={active === 0}
+              preload={active === 0}
               className="transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </button>
@@ -65,9 +65,11 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
               </button>
             </div>
           ) : null}
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 lg:hidden" aria-label={`Image ${active + 1} of ${safeImages.length}`}>
+          <div role="group" className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-0 lg:hidden" aria-label={`Image ${active + 1} of ${safeImages.length}`}>
             {safeImages.map((image, index) => (
-              <button key={image} type="button" onClick={() => setActive(index)} aria-label={`Show image ${index + 1}`} aria-current={index === active} className={cn("size-2 rounded-full border border-ivory", index === active ? "bg-indigo" : "bg-ivory/70")} />
+              <button key={image} type="button" onClick={() => setActive(index)} aria-label={`Show image ${index + 1}`} aria-current={index === active} className="grid size-6 place-items-center">
+                <span aria-hidden className={cn("size-2 rounded-full border border-ivory", index === active ? "bg-indigo" : "bg-ivory/70")} />
+              </button>
             ))}
           </div>
         </div>

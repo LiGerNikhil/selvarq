@@ -23,7 +23,7 @@ export interface MediaImageProps {
   /** Real display width per breakpoint; drives the srcset. Always set it for grids. */
   sizes?: string;
   /** Only for the LCP image on a page. */
-  priority?: boolean;
+  preload?: boolean;
   fit?: "cover" | "contain";
   className?: string;
 }
@@ -37,12 +37,18 @@ export function MediaImage({
   alt,
   ratio = "4/5",
   sizes = "(min-width: 1024px) 25vw, 50vw",
-  priority = false,
+  preload = false,
   fit = "cover",
   className,
 }: MediaImageProps) {
   const [failed, setFailed] = useState(false);
-  const showPlaceholder = failed || isPlaceholder(src);
+  const showPlaceholder = failed || !src || isPlaceholder(src);
+  const resolved = resolveMediaSrc(src);
+  // New links are imported to Cloudinary, but an older record may still point
+  // at another host. Render it unoptimized instead of crashing the page with
+  // next/image's "hostname is not configured" error.
+  const unmanagedRemote =
+    /^https?:\/\//i.test(resolved) && !/^https?:\/\/(?:res\.)?cloudinary\.com\//i.test(resolved);
 
   return (
     <div
@@ -53,11 +59,12 @@ export function MediaImage({
         <PlaceholderArt seed={src} />
       ) : (
         <Image
-          src={resolveMediaSrc(src)}
+          src={resolved}
           alt={alt}
           fill
           sizes={sizes}
-          priority={priority}
+          preload={preload}
+          unoptimized={unmanagedRemote}
           onError={() => setFailed(true)}
           className={cn(fit === "cover" ? "object-cover" : "object-contain")}
         />

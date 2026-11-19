@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Invoice", "/account/orders");
+
 import { notFound, redirect } from "next/navigation";
 import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
 import { getSession } from "@/lib/auth/demo-session";

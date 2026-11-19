@@ -1,6 +1,9 @@
 import { users } from "@/data";
 import type { Address } from "@/types/user";
 import type { User } from "@/data";
+import { demoDataEnabled } from "@/lib/demo-data";
+import { markDirty } from "@/lib/db/persistence";
+import { groupRecords, type EntityInput, type EntityRecord } from "@/lib/db/types";
 
 export interface CustomerPreferences {
   gender: "men" | "women" | "unisex" | "no_preference";
@@ -25,10 +28,11 @@ interface DemoAccountStore {
 
 const globalStore = globalThis as typeof globalThis & { __selvarqAccounts?: DemoAccountStore };
 
-// DEMO ONLY: accounts, passwords, addresses and reset tokens live in server process memory.
-function getStore(): DemoAccountStore {
-  if (!globalStore.__selvarqAccounts) {
-    const accounts = new Map<string, DemoAccount>();
+// Accounts, passwords, addresses and reset tokens are persisted to MongoDB when
+// DATA_SOURCE=mongo; otherwise they live in server process memory.
+function createStore(): DemoAccountStore {
+  const accounts = new Map<string, DemoAccount>();
+  if (demoDataEnabled()) {
     users.forEach((user, index) => {
       accounts.set(user.id, {
         ...user,
@@ -56,9 +60,35 @@ function getStore(): DemoAccountStore {
         notifications: { email: true, sms: false, orderUpdates: true },
       });
     });
-    globalStore.__selvarqAccounts = { accounts, resetTokens: new Map() };
   }
+  return { accounts, resetTokens: new Map() };
+}
+
+function getStore(): DemoAccountStore {
+  globalStore.__selvarqAccounts ??= createStore();
   return globalStore.__selvarqAccounts;
+}
+
+function persistAccountState(): void {
+  markDirty("accounts", accountDocuments);
+}
+
+/** Accounts and reset tokens as MongoDB records. */
+export function accountDocuments(): EntityInput[] {
+  const store = getStore();
+  return [
+    ...[...store.accounts.values()].map((account) => ({ kind: "accounts", entityId: account.id, data: account })),
+    ...[...store.resetTokens].map(([token, userId]) => ({ kind: "resetTokens", entityId: token, data: userId })),
+  ];
+}
+
+/** Rebuilds accounts and reset tokens from MongoDB. */
+export function applyAccountDocuments(records: EntityRecord[]): void {
+  const store = createStore();
+  const grouped = groupRecords(records);
+  store.accounts = new Map((grouped.get("accounts") ?? []).map((record) => [record.entityId, record.data as DemoAccount]));
+  store.resetTokens = new Map((grouped.get("resetTokens") ?? []).map((record) => [record.entityId, record.data as string]));
+  globalStore.__selvarqAccounts = store;
 }
 
 export function listDemoAccounts(): DemoAccount[] {
@@ -74,6 +104,50 @@ export function findDemoAccount(identifier: string): DemoAccount | undefined {
   return listDemoAccounts().find((account) =>
     account.email.toLowerCase() === normalized || account.phone === normalized.replace(/\D/g, ""),
   );
+}
+
+export interface SeedAccountInput {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: DemoAccount["role"];
+  merchantId?: string;
+}
+
+/**
+ * Creates a production access account when it is missing. An existing account
+ * with the same email keeps its current password and id, so password resets are
+ * not undone on restart.
+ */
+export function ensureDemoAccount(input: SeedAccountInput): DemoAccount {
+  const existing = findDemoAccount(input.email);
+  if (existing) {
+    let changed = false;
+    if (existing.name !== input.name) { existing.name = input.name; changed = true; }
+    if (existing.role !== input.role) { existing.role = input.role; changed = true; }
+    if (input.merchantId && existing.merchantId !== input.merchantId) { existing.merchantId = input.merchantId; changed = true; }
+    if (changed) persistAccountState();
+    return existing;
+  }
+
+  const account: DemoAccount = {
+    id: input.id,
+    name: input.name,
+    email: input.email.trim().toLowerCase(),
+    phone: input.phone,
+    role: input.role,
+    ...(input.merchantId ? { merchantId: input.merchantId } : {}),
+    joinedAt: new Date().toISOString(),
+    password: input.password,
+    addresses: [],
+    preferences: { gender: "no_preference", styles: [], usualSizes: [], favoriteCategories: [], onboardingComplete: true },
+    notifications: { email: true, sms: false, orderUpdates: true },
+  };
+  getStore().accounts.set(account.id, account);
+  persistAccountState();
+  return account;
 }
 
 export function createDemoAccount(input: {
@@ -98,6 +172,7 @@ export function createDemoAccount(input: {
     notifications: { email: true, sms: false, orderUpdates: true },
   };
   getStore().accounts.set(account.id, account);
+  persistAccountState();
   return account;
 }
 
@@ -125,6 +200,7 @@ export function createDemoMerchantAccount(input: {
     notifications: { email: true, sms: false, orderUpdates: true },
   };
   getStore().accounts.set(account.id, account);
+  persistAccountState();
   return account;
 }
 
@@ -141,6 +217,7 @@ export function updateDemoAccount(id: string, patch: Partial<Pick<DemoAccount, "
   }
   Object.assign(account, patch);
   if (patch.email) account.email = patch.email.trim().toLowerCase();
+  persistAccountState();
   return account;
 }
 
@@ -148,18 +225,35 @@ export function setDemoPassword(id: string, password: string): boolean {
   const account = getDemoAccountById(id);
   if (!account) return false;
   account.password = password;
+  persistAccountState();
+  return true;
+}
+
+/**
+ * Changes a password for a signed-in account after checking the current one.
+ * Returns false when the account is missing or the current password is wrong.
+ */
+export function changeDemoPassword(id: string, currentPassword: string, newPassword: string): boolean {
+  const account = getDemoAccountById(id);
+  if (!account || account.password !== currentPassword) return false;
+  account.password = newPassword;
+  persistAccountState();
   return true;
 }
 
 export function createDemoResetToken(id: string): string {
   const token = crypto.randomUUID();
   getStore().resetTokens.set(token, id);
+  persistAccountState();
   return token;
 }
 
 export function consumeDemoResetToken(token: string): string | undefined {
   const store = getStore();
   const userId = store.resetTokens.get(token);
-  if (userId) store.resetTokens.delete(token);
+  if (userId) {
+    store.resetTokens.delete(token);
+    persistAccountState();
+  }
   return userId;
 }

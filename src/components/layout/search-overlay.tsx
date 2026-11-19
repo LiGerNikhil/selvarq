@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useSyncExternalStore, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Clock3, Search, X } from "lucide-react";
-import { categories, products } from "@/data";
+import type { Category } from "@/data";
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 import { useModalDialog } from "@/hooks/use-modal-dialog";
+
+interface SearchProduct {
+  id: string;
+  name: string;
+  slug: string;
+  tags: string[];
+}
 
 const RECENT_KEY = "selvarq-recent-searches";
 const RECENT_EVENT = "selvarq:recent-searches";
@@ -34,7 +41,7 @@ function parseRecent(snapshot: string): string[] {
   }
 }
 
-export function SearchOverlay() {
+export function SearchOverlay({ products, categories }: { products: SearchProduct[]; categories: Category[] }) {
   const open = useUIStore((state) => state.searchOpen);
   const setOpen = useUIStore((state) => state.setSearchOpen);
   const [query, setQuery] = useState("");
@@ -60,11 +67,11 @@ export function SearchOverlay() {
   }, [open, setOpen]);
 
   const productSuggestions = useMemo(() => normalized
-    ? products.filter((product) => product.status === "active" && `${product.name} ${product.tags.join(" ")}`.toLocaleLowerCase("en-IN").includes(normalized)).slice(0, 5)
-    : [], [normalized]);
+    ? products.filter((product) => `${product.name} ${product.tags.join(" ")}`.toLocaleLowerCase("en-IN").includes(normalized)).slice(0, 5)
+    : [], [normalized, products]);
   const categorySuggestions = useMemo(() => normalized
     ? categories.filter((category) => category.name.toLocaleLowerCase("en-IN").includes(normalized)).slice(0, 4)
-    : [], [normalized]);
+    : [], [normalized, categories]);
 
   const remember = (term: string) => {
     const trimmed = term.trim();

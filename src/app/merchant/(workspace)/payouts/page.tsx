@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Seller payouts", "/merchant/payouts");
+
 import Link from "next/link";
 import { Download, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

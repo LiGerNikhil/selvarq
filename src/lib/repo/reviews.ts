@@ -1,5 +1,6 @@
 import { reviews } from "@/data";
 import type { Review } from "@/data";
+import { getAdminReviewStatus } from "@/lib/admin-store";
 import { paginate, type Page, type PageOptions } from "./types";
 
 export interface ReviewQuery extends PageOptions {
@@ -18,13 +19,17 @@ export interface ReviewSummary {
 export interface ReviewsRepository {
   getById(id: string): Promise<Review | undefined>;
   list(query?: ReviewQuery): Promise<Page<Review>>;
+  /** Every review regardless of moderation state, for the admin queue. */
+  all(): Promise<Review[]>;
   summary(productId: string): Promise<ReviewSummary>;
 }
 
 export const mockReviewsRepository: ReviewsRepository = {
   async getById(id) { return reviews.find((review) => review.id === id); },
+  async all() { return [...reviews]; },
   async list(query = {}) {
     const results = reviews.filter((review) =>
+      getAdminReviewStatus(review.id) === "visible" &&
       (!query.productId || review.productId === query.productId) &&
       (!query.userId || review.userId === query.userId) &&
       (!query.rating || review.rating === query.rating) &&
@@ -33,7 +38,7 @@ export const mockReviewsRepository: ReviewsRepository = {
     return paginate(results, query);
   },
   async summary(productId) {
-    const productReviews = reviews.filter((review) => review.productId === productId);
+    const productReviews = reviews.filter((review) => review.productId === productId && getAdminReviewStatus(review.id) === "visible");
     const distribution: ReviewSummary["distribution"] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     for (const review of productReviews) distribution[review.rating] += 1;
     const count = productReviews.length;

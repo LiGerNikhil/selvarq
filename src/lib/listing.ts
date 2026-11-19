@@ -1,4 +1,4 @@
-import { categories } from "@/data";
+import { getAdminCategories } from "@/lib/admin-store";
 import type { ProductQuery, ProductSort } from "@/lib/repo/products";
 
 export type ListingSearchParams = Record<string, string | string[] | undefined>;
@@ -24,7 +24,7 @@ const validSorts = new Set<ProductSort>(["relevance", "new", "price-asc", "price
 export function parseListingQuery(params: ListingSearchParams, fixed: Partial<ProductQuery> = {}): ProductQuery {
   const categorySlug = first(params.category);
   const category = categorySlug
-    ? categories.find((item) => item.slug === categorySlug || item.id === categorySlug)
+    ? getAdminCategories().find((item) => item.slug === categorySlug || item.id === categorySlug)
     : undefined;
   const rawSort = first(params.sort) as ProductSort | undefined;
   const min = numberParam(params.min);
@@ -54,9 +54,9 @@ export function parseListingQuery(params: ListingSearchParams, fixed: Partial<Pr
 }
 
 export function listingCategoryTitle(categoryId: string): string {
-  return categories.find((category) => category.id === categoryId)?.name ?? "Clothing";
+  return getAdminCategories().find((category) => category.id === categoryId)?.name ?? "Clothing";
 }
 
 export function listingCategoryFromSlug(slug: string) {
-  return categories.find((category) => category.slug === slug);
+  return getAdminCategories().find((category) => category.slug === slug);
 }

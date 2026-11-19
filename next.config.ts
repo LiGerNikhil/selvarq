@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_MONOGRAM_H: monogram.height,
   },
   images: {
-    // Remote hosts must be declared. Cloudinary is wired for P13.
+    // Cloudinary delivery URLs are declared here; uploads go through /api/uploads.
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
 };

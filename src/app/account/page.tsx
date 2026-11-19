@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Account overview", "/account");
+
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { ordersRepository, usersRepository } from "@/lib/repo";

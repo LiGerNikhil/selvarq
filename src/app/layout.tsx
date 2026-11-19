@@ -2,13 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/toast";
 import { SiteShell } from "@/components/layout/site-shell";
 import { BRAND } from "@/lib/config";
+import { SITE_URL } from "@/lib/seo";
 import { fontVariables } from "@/lib/fonts";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: { default: `${BRAND.name} | ${BRAND.tagline}`, template: `%s | ${BRAND.name}` },
   description:
     "Premium clothing for India, cut with intent and finished to last. Made by makers, chosen by us.",

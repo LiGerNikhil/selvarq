@@ -16,13 +16,14 @@ import { useWishlistStore } from "@/store/wishlist-store";
 interface ProductPurchaseProps {
   product: Product;
   coupons: Coupon[];
+  merchantName?: string;
 }
 
 function firstAvailable(variants: ProductVariant[]) {
   return variants.find((variant) => variant.stock > 0) ?? variants[0];
 }
 
-export function ProductPurchase({ product, coupons }: ProductPurchaseProps) {
+export function ProductPurchase({ product, coupons, merchantName }: ProductPurchaseProps) {
   const firstVariant = firstAvailable(product.variants);
   const [color, setColor] = useState(firstVariant?.color ?? product.colors[0]?.name ?? "");
   const [size, setSize] = useState(firstVariant?.size ?? "");
@@ -62,6 +63,8 @@ export function ProductPurchase({ product, coupons }: ProductPurchaseProps) {
       productId: product.id,
       variantId: selectedVariant.id,
       merchantId: product.merchantId,
+      slug: product.slug,
+      merchantName,
       name: product.name,
       imageId: product.imageIds[0] ?? "placeholder:product",
       color: selectedVariant.color,
@@ -69,6 +72,7 @@ export function ProductPurchase({ product, coupons }: ProductPurchaseProps) {
       unitPrice,
       mrp: product.mrp,
       quantity,
+      stock: selectedVariant.stock,
     });
     toast.success("Added to your bag", { description: `${product.name} · ${selectedVariant.color}, ${selectedVariant.size}` });
   }

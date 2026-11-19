@@ -1,12 +1,18 @@
+import type { Metadata } from "next";
 import { RenderMerchantListing } from "@/app/listings";
 import type { ListingSearchParams } from "@/lib/listing";
 import { merchantsRepository } from "@/lib/repo";
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const merchant = await merchantsRepository.getBySlug(slug);
-  return { title: merchant ? `${merchant.name} storefront` : "Storefront not found" };
+  if (!merchant) return pageMetadata({ title: "Storefront not found", description: "This seller is not available.", path: "/shop", noIndex: true });
+  return pageMetadata({
+    title: `${merchant.name} storefront`,
+    description: merchant.bio,
+    path: `/merchant/${merchant.slug}/store`,
+  });
 }
 
 export default async function MerchantStorePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<ListingSearchParams> }) {

@@ -15,7 +15,7 @@ export function Testimonials() {
             <blockquote className="mt-4 flex-1 font-display text-2xl leading-snug text-indigo">“{testimonial.quote}”</blockquote>
             <figcaption className="mt-5 flex items-end justify-between gap-3">
               <span><span className="block text-sm font-medium text-ink">{testimonial.name}</span><span className="caption">{testimonial.detail}</span></span>
-              <span className="flex gap-0.5" aria-label={`${testimonial.rating} out of 5 stars`}>
+              <span role="img" className="flex gap-0.5" aria-label={`${testimonial.rating} out of 5 stars`}>
                 {Array.from({ length: testimonial.rating }, (_, index) => <Star key={index} aria-hidden className="size-3.5 fill-gold text-gold" />)}
               </span>
             </figcaption>

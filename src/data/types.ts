@@ -14,6 +14,8 @@ export interface Category {
   slug: string;
   parentId: string | null;
   description: string;
+  /** Optional Cloudinary public id or URL for category art. */
+  imageId?: string;
 }
 
 export interface Collection {

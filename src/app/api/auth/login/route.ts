@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     : account.role === "customer" && !account.preferences.onboardingComplete
       ? "/onboarding"
       : account.role === "admin"
-        ? "/"
+        ? "/admin"
         : "/account";
-  return NextResponse.json({ next });
+  return NextResponse.json({ next, role: account.role });
 }

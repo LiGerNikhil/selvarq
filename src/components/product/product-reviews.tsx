@@ -70,7 +70,7 @@ export function ProductReviews({ productSlug, productName, reviews, summary, can
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
             <label className="flex min-h-11 flex-1 items-center justify-between gap-3 border border-line px-3 text-sm">
               <span>Filter by rating</span>
-              <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)} className="max-w-28 bg-transparent text-right text-indigo outline-none">
+              <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)} className="min-h-9 max-w-28 bg-transparent text-right text-indigo outline-none">
                 <option value="all">All</option>
                 {[5, 4, 3, 2, 1].map((stars) => <option key={stars} value={stars}>{stars} stars</option>)}
               </select>
@@ -133,7 +133,7 @@ export function ProductReviews({ productSlug, productName, reviews, summary, can
               </form>
             ) : (
               <p className="mt-3 text-sm text-muted">
-                {signedIn ? "A delivered order is required before you can review this piece." : <>Sign in and order this piece to share a verified review. <Link href={`/login?next=${encodeURIComponent(`/product/${productSlug}#reviews`)}`} className="text-indigo underline underline-offset-4">Sign in</Link></>}
+                {signedIn ? "A delivered order is required before you can review this piece." : <>Sign in and order this piece to share a verified review. <Link href={`/login?next=${encodeURIComponent(`/product/${productSlug}#reviews`)}`} className="inline-flex min-h-11 items-center text-indigo underline underline-offset-4">Sign in</Link></>}
               </p>
             )}
           </div>

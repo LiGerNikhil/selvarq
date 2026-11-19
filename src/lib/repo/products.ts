@@ -1,5 +1,5 @@
-import { categories, collections, merchants } from "@/data";
 import type { Category, Collection, Merchant, Product } from "@/data";
+import { getAdminCategories, getAdminCollections, getAdminMerchants } from "@/lib/admin-store";
 import { getMerchantProfile, getPublicDemoProducts } from "@/lib/demo-merchant-store";
 import { paginate, type Page, type PageOptions } from "./types";
 
@@ -55,24 +55,28 @@ type OmitFilter =
   | "categoryId" | "collectionId" | "merchantId" | "colors" | "sizes" | "price"
   | "fabrics" | "fits" | "occasions" | "rating" | "discount" | "inStock";
 
-const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
-const collectionNames = new Map(collections.map((collection) => [collection.id, collection.name]));
-const merchantNames = new Map(merchants.map((merchant) => [merchant.id, merchant.name]));
+function categoryName(id: string): string | undefined {
+  return getAdminCategories().find((category) => category.id === id)?.name;
+}
+
+function merchantName(id: string): string | undefined {
+  return getMerchantProfile(id)?.name ?? getAdminMerchants().find((merchant) => merchant.id === id)?.name;
+}
 
 function allProducts(): Product[] {
   return getPublicDemoProducts();
 }
 
 function isMerchantApproved(merchantId: string): boolean {
-  return (getMerchantProfile(merchantId)?.status ?? merchants.find((merchant) => merchant.id === merchantId)?.status ?? "pending") === "approved";
+  return (getMerchantProfile(merchantId)?.status ?? getAdminMerchants().find((merchant) => merchant.id === merchantId)?.status ?? "pending") === "approved";
 }
 
 function relevanceScore(product: Product, search: string): number {
   const terms = search.trim().toLocaleLowerCase("en-IN").split(/\s+/).filter(Boolean);
   const title = product.name.toLocaleLowerCase("en-IN");
   const tags = product.tags.join(" ").toLocaleLowerCase("en-IN");
-  const category = categoryNames.get(product.categoryId)?.toLocaleLowerCase("en-IN") ?? "";
-  const merchant = (getMerchantProfile(product.merchantId)?.name ?? merchantNames.get(product.merchantId) ?? "").toLocaleLowerCase("en-IN");
+  const category = categoryName(product.categoryId)?.toLocaleLowerCase("en-IN") ?? "";
+  const merchant = (getMerchantProfile(product.merchantId)?.name ?? merchantName(product.merchantId) ?? "").toLocaleLowerCase("en-IN");
   const searchable = `${product.description} ${product.fabric} ${product.fit}`.toLocaleLowerCase("en-IN");
   let score = title === search.toLocaleLowerCase("en-IN") ? 100 : title.includes(search.toLocaleLowerCase("en-IN")) ? 60 : 0;
   for (const term of terms) {
@@ -87,7 +91,7 @@ function relevanceScore(product: Product, search: string): number {
 
 function belongsToCategory(product: Product, categoryId: string): boolean {
   if (product.categoryId === categoryId) return true;
-  const productCategory = categories.find((category) => category.id === product.categoryId);
+  const productCategory = getAdminCategories().find((category) => category.id === product.categoryId);
   return productCategory?.parentId === categoryId;
 }
 
@@ -156,21 +160,24 @@ function makeFacets(query: ProductQuery = {}): ProductFacets {
   const fabricCounts = counts(fabricBase, (product) => [product.fabric]);
   const fitCounts = counts(fitBase, (product) => [product.fit]);
   const occasionCounts = counts(occasionBase, (product) => {
-    const category = categories.find((item) => item.id === product.categoryId);
+    const category = getAdminCategories().find((item) => item.id === product.categoryId);
     return category?.parentId === "occasion" ? [product.categoryId] : [];
   });
   const colorLookup = new Map(allProducts().flatMap((product) => product.colors.map((color) => [color.name, color.hex] as const)));
+  const categoryLabels = new Map(getAdminCategories().map((category) => [category.id, category.name]));
+  const collectionLabels = new Map(getAdminCollections().map((collection) => [collection.id, collection.name]));
+  const merchantLabels = new Map(getAdminMerchants().map((merchant) => [merchant.id, merchant.name]));
   const sortedFacet = (map: Map<string, number>, labels: Map<string, string>) =>
     [...map].map(([id, count]) => ({ id, name: labels.get(id) ?? id, count })).sort((a, b) => a.name.localeCompare(b.name));
   return {
-    categories: sortedFacet(categoryCounts, categoryNames),
-    collections: sortedFacet(collectionCounts, collectionNames),
-    merchants: sortedFacet(merchantCounts, merchantNames),
+    categories: sortedFacet(categoryCounts, categoryLabels),
+    collections: sortedFacet(collectionCounts, collectionLabels),
+    merchants: sortedFacet(merchantCounts, merchantLabels),
     colors: [...colorCounts].map(([name, count]) => ({ name, hex: colorLookup.get(name) ?? "#B8AE9D", count })).sort((a, b) => a.name.localeCompare(b.name)),
     sizes: [...sizeCounts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name)),
     fabrics: [...fabricCounts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name)),
     fits: [...fitCounts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name)),
-    occasions: [...occasionCounts].map(([id, count]) => ({ id, name: categoryNames.get(id) ?? id, count })).sort((a, b) => a.name.localeCompare(b.name)),
+    occasions: [...occasionCounts].map(([id, count]) => ({ id, name: categoryLabels.get(id) ?? id, count })).sort((a, b) => a.name.localeCompare(b.name)),
     price: {
       min: priceBase.length ? Math.min(...priceBase.map((product) => product.price)) : 0,
       max: priceBase.length ? Math.max(...priceBase.map((product) => product.price)) : 0,

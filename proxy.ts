@@ -10,7 +10,7 @@ export function proxy(request: NextRequest): NextResponse {
     ? "customer"
     : pathname.startsWith("/merchant/")
       ? "merchant"
-      : pathname.startsWith("/admin/")
+      : pathname === "/admin" || pathname.startsWith("/admin/")
         ? "admin"
         : undefined;
 

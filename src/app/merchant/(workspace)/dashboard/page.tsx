@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Seller dashboard", "/merchant/dashboard");
+
 import Link from "next/link";
 import { ArrowRight, CircleAlert, PackageCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -46,11 +51,11 @@ export default async function MerchantDashboardPage() {
         {chart.length ? <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div>
             <p className="caption">Sales value</p>
-            <div className="mt-3 flex h-40 items-end gap-2 border-b border-line px-1">{chart.map(([month, bucket]) => <div key={month} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] text-muted">{formatINR(bucket.sales)}</span><div className="w-full max-w-10 bg-indigo/80" style={{ height: `${Math.max(8, bucket.sales / maxAmount * 70)}%` }} title={`${month}: ${formatINR(bucket.sales)}`} /><span className="mb-2 text-[10px] text-muted">{month}</span></div>)}</div>
+            <div className="mt-3 flex h-40 items-end gap-2 border-b border-line px-1">{chart.map(([month, bucket]) => <div key={month} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[11px] text-muted">{formatINR(bucket.sales)}</span><div className="w-full max-w-10 bg-indigo/80" style={{ height: `${Math.max(8, bucket.sales / maxAmount * 70)}%` }} title={`${month}: ${formatINR(bucket.sales)}`} /><span className="mb-2 text-[11px] text-muted">{month}</span></div>)}</div>
           </div>
           <div>
             <p className="caption">Orders</p>
-            <div className="mt-3 flex h-40 items-end gap-2 border-b border-line px-1">{chart.map(([month, bucket]) => <div key={month} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] text-muted">{bucket.orders}</span><div className="w-full max-w-10 bg-gold/80" style={{ height: `${Math.max(8, bucket.orders / maxOrders * 70)}%` }} title={`${month}: ${bucket.orders} order(s)`} /><span className="mb-2 text-[10px] text-muted">{month}</span></div>)}</div>
+            <div className="mt-3 flex h-40 items-end gap-2 border-b border-line px-1">{chart.map(([month, bucket]) => <div key={month} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[11px] text-muted">{bucket.orders}</span><div className="w-full max-w-10 bg-gold/80" style={{ height: `${Math.max(8, bucket.orders / maxOrders * 70)}%` }} title={`${month}: ${bucket.orders} order(s)`} /><span className="mb-2 text-[11px] text-muted">{month}</span></div>)}</div>
           </div>
         </div> : <p className="body mt-5">Your sales and order charts will appear when orders arrive.</p>}
       </section>

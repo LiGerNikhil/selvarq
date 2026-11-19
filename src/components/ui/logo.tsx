@@ -32,11 +32,11 @@ export interface LogoProps {
   /** Wraps the logo in a link, e.g. "/". */
   href?: string;
   /** Set on the logo that is the LCP element. */
-  priority?: boolean;
+  preload?: boolean;
   className?: string;
 }
 
-function LogoMark({ variant, size, tone, priority }: Required<Pick<LogoProps, "variant" | "size" | "tone">> & { priority?: boolean }) {
+function LogoMark({ variant, size, tone, preload }: Required<Pick<LogoProps, "variant" | "size" | "tone">> & { preload?: boolean }) {
   const asset = assets[variant];
   if (asset.present && asset.width > 0 && asset.height > 0) {
     const height = imageHeight[size];
@@ -46,7 +46,7 @@ function LogoMark({ variant, size, tone, priority }: Required<Pick<LogoProps, "v
         alt="SELVARQ"
         width={asset.width}
         height={asset.height}
-        priority={priority}
+        preload={preload}
         style={{ height, width: "auto", maxWidth: "100%" }}
       />
     );
@@ -93,10 +93,10 @@ export function Logo({
   size = "md",
   tone = "indigo",
   href,
-  priority,
+  preload,
   className,
 }: LogoProps) {
-  const mark = <LogoMark variant={variant} size={size} tone={tone} priority={priority} />;
+  const mark = <LogoMark variant={variant} size={size} tone={tone} preload={preload} />;
   if (!href) return <span className={cn("inline-flex", className)}>{mark}</span>;
   return (
     <Link href={href} aria-label="SELVARQ home" className={cn("inline-flex", className)}>

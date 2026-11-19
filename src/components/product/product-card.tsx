@@ -8,20 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Price } from "@/components/ui/price";
 import { MediaImage } from "@/components/ui/media-image";
 import { Sheet } from "@/components/ui/sheet";
-import { merchants, products, type Product } from "@/data";
+import { type Product } from "@/data";
 import { toast } from "@/store/toast-store";
 import { useCartStore } from "@/store/cart-store";
 import { useUIStore } from "@/store/ui-store";
 import { useWishlistStore } from "@/store/wishlist-store";
 import { cn } from "@/lib/utils";
 
-const newestIds = new Set([...products].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 8).map((product) => product.id));
-const bestsellerIds = new Set([...products].sort((a, b) => b.rating.count - a.rating.count || b.rating.average - a.rating.average).slice(0, 8).map((product) => product.id));
-
 export function ProductCard({ product, isNew, bestseller, merchantName }: { product: Product; isNew?: boolean; bestseller?: boolean; merchantName?: string }) {
   const saved = useWishlistStore((state) => state.productIds.includes(product.id));
   const toggle = useWishlistStore((state) => state.toggle);
-  const merchant = merchants.find((item) => item.id === product.merchantId);
   const [imageIndex, setImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
   const [selectedSize, setSelectedSize] = useState<Product["sizes"][number] | null>(null);
@@ -32,8 +28,8 @@ export function ProductCard({ product, isNew, bestseller, merchantName }: { prod
   const setCartOpen = useUIStore((state) => state.setCartOpen);
   const images = product.imageIds.slice(0, 6);
   const activeColor = product.colors.find((color) => color.name === selectedColor) ?? product.colors[0];
-  const isFresh = isNew ?? newestIds.has(product.id);
-  const isBestseller = bestseller ?? bestsellerIds.has(product.id);
+  const isFresh = isNew ?? false;
+  const isBestseller = bestseller ?? false;
   const discount = product.mrp > product.price ? Math.floor((product.mrp - product.price) / product.mrp * 100) : 0;
   const stockForSize = (size: Product["sizes"][number]) =>
     product.variants.some((variant) => variant.color === activeColor?.name && variant.size === size && variant.stock > 0);
@@ -63,6 +59,8 @@ export function ProductCard({ product, isNew, bestseller, merchantName }: { prod
       productId: product.id,
       variantId: variant.id,
       merchantId: product.merchantId,
+      slug: product.slug,
+      merchantName,
       name: product.name,
       imageId: product.imageIds[0],
       color: variant.color,
@@ -70,6 +68,7 @@ export function ProductCard({ product, isNew, bestseller, merchantName }: { prod
       unitPrice: product.price,
       mrp: product.mrp,
       quantity: 1,
+      stock: variant.stock,
     });
     setQuickAddOpen(false);
     toast.success("Added to your bag", { description: `${product.name} · ${variant.color}, ${variant.size}` });
@@ -106,15 +105,17 @@ export function ProductCard({ product, isNew, bestseller, merchantName }: { prod
           <Heart aria-hidden className={cn("size-5", saved && "fill-burgundy text-burgundy")} />
         </button>
         {images.length > 1 ? (
-          <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1.5 md:hidden" role="group" aria-label={`${product.name} image ${imageIndex + 1} of ${images.length}`}>
+          <div className="absolute inset-x-0 bottom-2 flex justify-center gap-0 md:hidden" role="group" aria-label={`${product.name} image ${imageIndex + 1} of ${images.length}`}>
             {images.map((image, index) => (
-              <button key={image} type="button" onClick={() => setImageIndex(index)} aria-label={`Show product image ${index + 1}`} aria-current={index === imageIndex ? "true" : undefined} className={cn("size-2 rounded-full border border-ivory shadow", index === imageIndex ? "bg-indigo" : "bg-ivory/75")} />
+              <button key={image} type="button" onClick={() => setImageIndex(index)} aria-label={`Show product image ${index + 1}`} aria-current={index === imageIndex ? "true" : undefined} className="grid size-6 place-items-center">
+                <span aria-hidden className={cn("size-2 rounded-full border border-ivory shadow", index === imageIndex ? "bg-indigo" : "bg-ivory/75")} />
+              </button>
             ))}
           </div>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5 pt-3">
-        <p className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-muted">{merchantName ?? merchant?.name ?? "SELVARQ"}</p>
+        <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-muted">{merchantName ?? "SELVARQ"}</p>
         <Link href={`/product/${product.slug}`} className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-ink hover:text-indigo">
           {product.name}
         </Link>
@@ -124,13 +125,13 @@ export function ProductCard({ product, isNew, bestseller, merchantName }: { prod
           <span className="inline-flex items-center gap-1 bg-success px-1.5 py-0.5 font-medium text-white">{product.rating.average.toFixed(1)} <span aria-hidden>★</span></span>
           <span className="text-muted">({product.rating.count})</span>
         </div>
-        <div className="flex min-h-10 items-center gap-2" aria-label="Available colours">
+        <div role="group" aria-label="Available colours" className="flex min-h-10 items-center gap-1">
           {product.colors.slice(0, 5).map((color) => (
-            <button key={color.name} type="button" title={color.name} aria-label={`${color.name} colour`} aria-pressed={selectedColor === color.name} onClick={() => setSelectedColor(color.name)} className={cn("grid size-7 place-items-center rounded-full border-2", selectedColor === color.name ? "border-indigo" : "border-transparent")}>
-              <span className="size-4 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
+            <button key={color.name} type="button" title={color.name} aria-label={`${color.name} colour`} aria-pressed={selectedColor === color.name} onClick={() => setSelectedColor(color.name)} className={cn("grid size-6 shrink-0 place-items-center rounded-full border-2 sm:size-7", selectedColor === color.name ? "border-indigo" : "border-transparent")}>
+              <span className="size-3.5 rounded-full border border-black/10 sm:size-4" style={{ backgroundColor: color.hex }} />
             </button>
           ))}
-          {product.colors.length > 5 ? <span className="text-xs text-muted">+{product.colors.length - 5}</span> : null}
+          {product.colors.length > 5 ? <span className="hidden text-xs text-muted sm:inline">+{product.colors.length - 5}</span> : null}
         </div>
         <Button size="sm" variant="ghost" fullWidth leftIcon={<ShoppingBag aria-hidden className="size-4" />} onClick={() => setQuickAddOpen(true)}>
           Quick add

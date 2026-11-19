@@ -26,7 +26,7 @@ export function MobileTabBar() {
         {tabs.map(({ label, href: baseHref, icon: Icon }) => {
           const href = label === "Account" && account?.role === "customer" ? "/account" : baseHref;
           const active = href ? pathname === href || (href !== "/" && pathname.startsWith(href)) : false;
-          const content = <><Icon aria-hidden className="size-5" /><span className="text-[10px] leading-none">{label}</span></>;
+          const content = <><Icon aria-hidden className="size-5" /><span className="text-[11px] leading-none">{label}</span></>;
           const className = cn("flex min-h-14 flex-col items-center justify-center gap-1 text-muted transition-colors hover:text-indigo", active && "text-indigo");
           return (
             <li key={label}>

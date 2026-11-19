@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Profile", "/account/profile");
+
 import { ProfileForm } from "@/components/account/profile-form";
 import { getSession } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";

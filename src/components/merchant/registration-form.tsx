@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, FileImage, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MediaImage } from "@/components/ui/media-image";
+import { ImageUploadButton } from "@/components/ui/image-uploader";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { merchantApplicationSchema, type MerchantApplicationInput } from "@/lib/merchant-schemas";
@@ -77,12 +78,14 @@ export function MerchantRegistrationForm() {
   }
 
   const gstDeclaration = values.gstDeclaration;
-  const logoPreview = values.logoName
-    ? `placeholder:merchant-logo-${values.logoName.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`
-    : "placeholder:merchant-logo";
+  const logoPreview = values.logoId
+    ? values.logoId
+    : values.logoName
+      ? `placeholder:merchant-logo-${values.logoName.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`
+      : "placeholder:merchant-logo";
 
   return <section className="mt-9 border border-line bg-ivory p-4 sm:p-7">
-    <ol aria-label="Application progress" className="grid grid-cols-5 gap-2">{steps.map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined} className="min-w-0"><span className={`block h-1 ${index <= step ? "bg-indigo" : "bg-line"}`} /><span className={`mt-2 block truncate text-[10px] uppercase tracking-wide sm:text-xs ${step === index ? "font-medium text-indigo" : "text-muted"}`}>{label}</span></li>)}</ol>
+    <ol aria-label="Application progress" className="grid grid-cols-5 gap-2">{steps.map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined} className="min-w-0"><span className={`block h-1 ${index <= step ? "bg-indigo" : "bg-line"}`} /><span className={`mt-2 block truncate text-[11px] uppercase tracking-wide sm:text-xs ${step === index ? "font-medium text-indigo" : "text-muted"}`}>{label}</span></li>)}</ol>
     <form className="mt-8 space-y-5" onSubmit={(event) => event.preventDefault()} noValidate>
       {step === 0 ? <div className="grid gap-4 sm:grid-cols-2">
         <Input label="Owner / contact name" required {...register("ownerName")} error={errors.ownerName?.message} />
@@ -118,12 +121,20 @@ export function MerchantRegistrationForm() {
           <div className="border border-dashed border-line p-4">
             <p className="flex items-center gap-2 text-sm font-medium text-indigo"><FileImage aria-hidden className="size-4" />Brand logo</p>
             <div className="mt-3 flex items-center gap-3">
-              <div className="w-16 shrink-0 border border-line p-1"><MediaImage src={logoPreview} alt="Brand logo preview" ratio="1/1" sizes="64px" /></div>
-              <label className="min-w-0 flex-1 cursor-pointer text-sm">
-                <span className="text-indigo underline underline-offset-4">Choose logo</span>
-                <input type="file" accept="image/*" className="sr-only" onChange={(event) => { const fileName = event.target.files?.[0]?.name; if (fileName) setValue("logoName", fileName, { shouldValidate: true }); }} />
-                <span className="caption mt-1 block truncate">{values.logoName || "No file selected. Preview only."}</span>
-              </label>
+              <div className="w-16 shrink-0 border border-line p-1"><MediaImage src={logoPreview} alt="Brand logo preview" ratio="1/1" sizes="64px" /></div>              <div className="min-w-0 flex-1 space-y-2">
+                <ImageUploadButton
+                  folder="seller-applications"
+                  remaining={1}
+                  label={values.logoId ? "Replace logo" : "Choose logo"}
+                  onUploaded={(assets) => {
+                    const asset = assets[0];
+                    if (!asset) return;
+                    setValue("logoName", asset.originalName, { shouldValidate: true });
+                    setValue("logoId", asset.publicId, { shouldValidate: true });
+                  }}
+                />
+                <span className="caption block truncate">{values.logoName || "No file selected."}</span>
+              </div>
             </div>
             {errors.logoName ? <p role="alert" className="mt-2 text-sm text-danger">{errors.logoName.message}</p> : null}
           </div>

@@ -8,6 +8,10 @@ export interface CartItem {
   productId: string;
   variantId: string;
   merchantId: string;
+  /** Product slug and merchant name are captured at add-to-bag time so the
+   * cart never needs the seed catalogue to render itself. */
+  slug?: string;
+  merchantName?: string;
   name: string;
   imageId: string;
   color: string;

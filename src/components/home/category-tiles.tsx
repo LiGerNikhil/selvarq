@@ -10,7 +10,7 @@ export function CategoryTiles({ categories, products }: { categories: Category[]
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {categories.map((category, index) => {
           const product = products.find((item) => item.categoryId.startsWith(`${category.id}-`));
-          const seed = product?.imageIds[0] ?? `placeholder:category-${category.slug}`;
+          const seed = category.imageId ?? product?.imageIds[0] ?? `placeholder:category-${category.slug}`;
           return (
             <Link key={category.id} href={`/category/${category.slug}`} className={`group relative overflow-hidden ${index === 0 ? "col-span-2 row-span-2" : ""}`}>
               <MediaImage

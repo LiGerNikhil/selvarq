@@ -1,5 +1,5 @@
-import { banners, coupons, stories } from "@/data";
 import type { Banner, Coupon, Story } from "@/data";
+import { getAdminBanners, getAdminCoupons, getAdminStories } from "@/lib/admin-store";
 import { paginate, type Page, type PageOptions } from "./types";
 
 export interface CouponsRepository {
@@ -19,24 +19,24 @@ export interface BannersRepository {
 }
 
 export const mockCouponsRepository: CouponsRepository = {
-  async getByCode(code) { return coupons.find((coupon) => coupon.code.toUpperCase() === code.trim().toUpperCase()); },
+  async getByCode(code) { return getAdminCoupons().find((coupon) => coupon.code.toUpperCase() === code.trim().toUpperCase()); },
   async listActive(now = new Date()) {
     const timestamp = now.getTime();
-    return coupons.filter((coupon) =>
+    return getAdminCoupons().filter((coupon) =>
       coupon.active && Date.parse(coupon.startsAt) <= timestamp && Date.parse(coupon.endsAt) >= timestamp,
     );
   },
 };
 
 export const mockStoriesRepository: StoriesRepository = {
-  async getById(id) { return stories.find((story) => story.id === id); },
-  async getBySlug(slug) { return stories.find((story) => story.slug === slug); },
+  async getById(id) { return getAdminStories().find((story) => story.id === id); },
+  async getBySlug(slug) { return getAdminStories().find((story) => story.slug === slug); },
   async list(options) {
-    return paginate([...stories].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)), options);
+    return paginate([...getAdminStories()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)), options);
   },
 };
 
 export const mockBannersRepository: BannersRepository = {
-  async getById(id) { return banners.find((banner) => banner.id === id); },
-  async list(placement) { return banners.filter((banner) => banner.active && (!placement || banner.placement === placement)); },
+  async getById(id) { return getAdminBanners().find((banner) => banner.id === id); },
+  async list(placement) { return getAdminBanners().filter((banner) => banner.active && (!placement || banner.placement === placement)); },
 };

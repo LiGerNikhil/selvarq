@@ -14,13 +14,14 @@
   --gold-soft: #e9ddbf;
   --burgundy: #6b1f3a;
   --ink: #1a1a2e;
-  --muted: #6b6b80;
+  --muted: #5f5f75;
   --line: #e6dfd2;
   --success: #2f6b4f;
   --danger: #a3262b;
   /* Derived (not in the brand palette): gold darkened to pass AA as text on
-     ivory. Gold itself stays for hairlines, icons, fills and focus. */
-  --gold-ink: #8a6a1f;
+     ivory, pearl and soft gold. Gold itself stays for hairlines, icons, fills
+     and focus. */
+  --gold-ink: #785a16;
 
   --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
   color-scheme: light;
@@ -108,7 +109,8 @@ body:has(.overlay[open]) {
 }
 @keyframes story-reveal {
   from {
-    opacity: 0.35;
+    /* Keep copy fully legible while it slides in; contrast must not dip. */
+    opacity: 1;
     transform: translateY(24px);
   }
   to {

@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Seller orders", "/merchant/orders");
+
 import { getMerchantIdentity } from "@/lib/merchant-access";
 import { listMerchantOrders } from "@/lib/demo-merchant-store";
 import { MerchantOrderList } from "@/components/merchant/order-list";

@@ -1,4 +1,4 @@
-import type { Order, OrderStatus, Product, User } from "./types";
+import type { Merchant, Order, OrderStatus, Product, User } from "./types";
 
 const statuses: OrderStatus[] = [
   "delivered", "shipped", "processing", "confirmed", "pending",
@@ -8,9 +8,11 @@ const statuses: OrderStatus[] = [
 ];
 const paymentMethods: Order["paymentMethod"][] = ["upi", "card", "cod", "netbanking"];
 
-export function createOrders(products: Product[], users: User[]): Order[] {
+export function createOrders(products: Product[], users: User[], merchants: Merchant[]): Order[] {
   return statuses.map((status, index): Order => {
     const product = products[(index * 7) % products.length];
+    const user = users[index % users.length];
+    const merchant = merchants.find((item) => item.id === product.merchantId);
     const quantity = index % 4 === 0 ? 2 : 1;
     const unitPrice = product.price;
     const discount = index % 5 === 0 ? Math.round(unitPrice * 0.1) : 0;
@@ -25,7 +27,7 @@ export function createOrders(products: Product[], users: User[]): Order[] {
     return {
       id: `order-${String(index + 1).padStart(3, "0")}`,
       orderNumber: `SVQ-25-${String(10021 + index).padStart(5, "0")}`,
-      userId: users[index % 3].id,
+      userId: user.id,
       status,
       items: [item],
       subtotal,
@@ -34,6 +36,23 @@ export function createOrders(products: Product[], users: User[]): Order[] {
       total: Math.max(0, subtotal - discount + shipping),
       paymentMethod: paymentMethods[index % paymentMethods.length],
       paymentStatus: status === "pending" ? "pending" : status === "returned" || status === "cancelled" ? "refunded" : "paid",
+      address: {
+        name: user.name,
+        email: user.email,
+        phone: `98765000${String((index % 3) + 1).padStart(2, "0")}`,
+        line1: "12, Palm Grove Road",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pincode: "400001",
+      },
+      merchantOrders: [{
+        merchantId: product.merchantId,
+        merchantName: merchant?.name ?? product.merchantId,
+        itemIds: [product.id],
+        subtotal,
+        shipping,
+        status: "confirmed" as const,
+      }],
       placedAt,
       updatedAt: new Date(Date.UTC(2025, 0, 5 + index * 6)).toISOString(),
       ...(status === "shipped" || status === "delivered" ? { trackingNumber: `INSEL${String(8200400000 + index)}` } : {}),

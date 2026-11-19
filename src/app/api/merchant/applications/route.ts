@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createDemoMerchantAccount } from "@/lib/demo-account-store";
 import { setDemoSession } from "@/lib/auth/demo-session";
 import { saveMerchantApplication, getMerchantApplicationByEmail } from "@/lib/demo-merchant-store";
+import { registerAdminMerchantApplication } from "@/lib/admin-store";
 import { merchantApplicationSchema } from "@/lib/merchant-schemas";
 
 export async function POST(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       displayName: application.displayName,
       city: application.city,
       bio: application.bio,
-      logoId: `placeholder:merchant-logo-${merchantId}`,
+      logoId: application.logoId || `placeholder:merchant-logo-${merchantId}`,
       gstDeclaration: application.gstDeclaration,
       ...(application.gstin ? { gstin: application.gstin } : {}),
       pan: application.pan,
@@ -40,6 +41,26 @@ export async function POST(request: NextRequest) {
       documents: application.documents,
       termsAccepted: application.termsAccepted,
       status: "pending",
+      createdAt: new Date().toISOString(),
+    });
+    registerAdminMerchantApplication({
+      id: crypto.randomUUID(),
+      ownerUserId: account.id,
+      merchantId,
+      ownerName: application.ownerName,
+      email: application.email.toLowerCase(),
+      phone: application.phone,
+      businessName: application.businessName,
+      displayName: application.displayName,
+      city: application.city,
+      bio: application.bio,
+      logoId: application.logoId || `placeholder:merchant-logo-${merchantId}`,
+      gstDeclaration: application.gstDeclaration,
+      ...(application.gstin ? { gstin: application.gstin } : {}),
+      pan: application.pan,
+      bank: application.bank,
+      pickupAddress: application.pickupAddress,
+      documents: application.documents,
       createdAt: new Date().toISOString(),
     });
     await setDemoSession(account.id);

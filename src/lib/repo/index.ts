@@ -8,10 +8,15 @@ import { mockBannersRepository, mockCouponsRepository, mockStoriesRepository } f
 
 const dataSource = process.env.DATA_SOURCE ?? "mock";
 
-if (dataSource !== "mock") {
-  throw new Error(`DATA_SOURCE="${dataSource}" is not available yet. MongoDB repositories are planned for P13.`);
+if (dataSource !== "mock" && dataSource !== "mongo") {
+  throw new Error(`DATA_SOURCE="${dataSource}" is not supported. Use "mock" or "mongo".`);
 }
 
+/**
+ * Repositories always read from the in-memory working set. With
+ * DATA_SOURCE=mongo that set is hydrated from MongoDB at boot and every
+ * mutation is written back, so callers do not need to change.
+ */
 export const repositories = {
   products: mockProductsRepository,
   categories: mockCategoriesRepository,

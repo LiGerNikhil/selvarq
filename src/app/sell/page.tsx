@@ -2,17 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Boxes, ChartNoAxesCombined, CircleDollarSign, Handshake, PackageCheck, Store } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Sell on SELVARQ",
-  description: "Apply to sell considered Indian clothing on SELVARQ. Clear 12% commission, product and order tools, and a storefront that tells your label's story.",
-  alternates: { canonical: "/sell" },
-  openGraph: {
-    title: "Sell on SELVARQ",
-    description: "A considered marketplace for independent labels and makers. Apply in four clear steps.",
-    url: "/sell",
-  },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Sell with us",
+  description: "Apply to sell considered Indian clothing on SELVARQ. Clear commission, product and order tools, and a storefront that tells your label's story.",
+  path: "/sell",
+});
 
 const benefits = [
   { icon: Handshake, title: "A considered marketplace", text: "Meet customers who value thoughtful design, good materials and the hands behind every piece." },

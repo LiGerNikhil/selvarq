@@ -7,53 +7,42 @@ import type { Coupon } from "@/data";
 import { MediaImage } from "@/components/ui/media-image";
 import { Price } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { COMMERCE, gstRateFor } from "@/lib/config";
+import { gstRateFor } from "@/lib/config";
+import type { AdminSettings } from "@/lib/admin-store";
 import { discountPercent, formatINR } from "@/lib/format";
-import { merchants, products } from "@/data";
 import { groupCartItems, useCartStore } from "@/store/cart-store";
 import { toast } from "@/store/toast-store";
 import { useWishlistStore } from "@/store/wishlist-store";
 
-export function CartPage({ coupons }: { coupons: Coupon[] }) {
+export function CartPage({ coupons, settings }: { coupons: Coupon[]; settings: AdminSettings }) {
   const items = useCartStore((state) => state.items);
   const couponCode = useCartStore((state) => state.couponCode);
   const setCouponCode = useCartStore((state) => state.setCouponCode);
   const removeItem = useCartStore((state) => state.removeItem);
   const setQuantity = useCartStore((state) => state.setQuantity);
-  const updateItem = useCartStore((state) => state.updateItem);
   const toggleWishlist = useWishlistStore((state) => state.toggle);
   const [couponInput, setCouponInput] = useState(couponCode);
   const groups = useMemo(() => groupCartItems(items), [items]);
-  const subtotal = items.reduce((sum, item) => {
-    const product = products.find((candidate) => candidate.id === item.productId);
-    return sum + (item.priceConfirmed ? item.unitPrice : product?.price ?? item.unitPrice) * item.quantity;
-  }, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const activeCoupon = coupons.find((coupon) => coupon.code === couponCode);
   const couponEligibleSubtotal = items.reduce((sum, item) => {
-    const product = products.find((candidate) => candidate.id === item.productId);
-    if (!product || (activeCoupon?.merchantId && product.merchantId !== activeCoupon.merchantId)) return sum;
-    return sum + (item.priceConfirmed ? item.unitPrice : product.price) * item.quantity;
+    if (activeCoupon?.merchantId && item.merchantId !== activeCoupon.merchantId) return sum;
+    return sum + item.unitPrice * item.quantity;
   }, 0);
   const couponDiscount = activeCoupon
     ? Math.min(couponEligibleSubtotal, activeCoupon.discountType === "percentage"
       ? Math.min(Math.round(couponEligibleSubtotal * activeCoupon.discountValue / 100), activeCoupon.maxDiscount ?? Number.MAX_SAFE_INTEGER)
       : activeCoupon.discountValue)
     : 0;
-  const shipping = subtotal - couponDiscount >= COMMERCE.freeDeliveryThreshold ? 0 : COMMERCE.standardShippingFee;
+  const shipping = subtotal - couponDiscount >= settings.freeDeliveryThreshold ? 0 : settings.standardShippingFee;
   const total = subtotal - couponDiscount + shipping;
-  const amountToFreeDelivery = Math.max(0, COMMERCE.freeDeliveryThreshold - (subtotal - couponDiscount));
-  const hasConflicts = items.some((item) => {
-    const product = products.find((candidate) => candidate.id === item.productId);
-    const variant = product?.variants.find((candidate) => candidate.id === item.variantId);
-    return !product || !variant || (!item.priceConfirmed && product.price !== item.unitPrice) || (item.stock ?? variant.stock) < item.quantity;
-  });
+  const amountToFreeDelivery = Math.max(0, settings.freeDeliveryThreshold - (subtotal - couponDiscount));
+  const hasConflicts = items.some((item) => item.stock !== undefined && item.stock < item.quantity);
   const gstIncluded = items.reduce((sum, item) => {
-    const product = products.find((candidate) => candidate.id === item.productId);
-    if (!product) return sum;
-    const unitPrice = item.priceConfirmed ? item.unitPrice : product.price;
-    const rate = gstRateFor(unitPrice);
+    const unitPrice = item.unitPrice;
+    const rate = gstRateFor(unitPrice, settings.gstSlabs);
     const gross = unitPrice * item.quantity;
-    const lineDiscount = activeCoupon && (!activeCoupon.merchantId || activeCoupon.merchantId === product.merchantId) && couponEligibleSubtotal
+    const lineDiscount = activeCoupon && (!activeCoupon.merchantId || activeCoupon.merchantId === item.merchantId) && couponEligibleSubtotal
       ? Math.round(couponDiscount * gross / couponEligibleSubtotal)
       : 0;
     return sum + Math.round((gross - lineDiscount) * rate / (100 + rate));
@@ -67,9 +56,8 @@ export function CartPage({ coupons }: { coupons: Coupon[] }) {
       return;
     }
     const eligibleSubtotal = items.reduce((sum, item) => {
-      const product = products.find((candidate) => candidate.id === item.productId);
-      if (!product || (coupon.merchantId && product.merchantId !== coupon.merchantId)) return sum;
-      return sum + (item.priceConfirmed ? item.unitPrice : product.price) * item.quantity;
+      if (coupon.merchantId && item.merchantId !== coupon.merchantId) return sum;
+      return sum + item.unitPrice * item.quantity;
     }, 0);
     if (eligibleSubtotal < coupon.minimumSpend) {
       toast.error("Minimum spend not met", { description: `This offer needs a bag subtotal of ${formatINR(coupon.minimumSpend)}.` });
@@ -89,7 +77,7 @@ export function CartPage({ coupons }: { coupons: Coupon[] }) {
     return (
       <div className="mx-auto max-w-xl py-20 text-center">
         <ShoppingBag aria-hidden className="mx-auto size-10 text-gold-ink" />
-        <h1 className="display-lg mt-5 text-indigo">Your bag is taking a quiet moment</h1>
+        <h2 className="display-lg mt-5 text-indigo">Your bag is taking a quiet moment</h2>
         <p className="mt-3 text-sm text-muted">Explore considered clothing from SELVARQ and independent Indian makers.</p>
         <Link href="/shop" className="mt-6 inline-flex min-h-11 items-center justify-center bg-indigo px-6 text-xs font-medium uppercase tracking-wide text-ivory">Explore the collection</Link>
       </div>
@@ -102,55 +90,40 @@ export function CartPage({ coupons }: { coupons: Coupon[] }) {
         {amountToFreeDelivery > 0 ? (
           <section aria-label="Free delivery progress" className="border border-line bg-pearl/60 p-4">
             <p className="text-sm text-ink">Add <strong>{formatINR(amountToFreeDelivery)}</strong> for complimentary delivery.</p>
-            <div className="mt-3 h-2 overflow-hidden bg-line"><div className="h-full bg-gold transition-[width] duration-300" style={{ width: `${Math.min(100, (subtotal - couponDiscount) / COMMERCE.freeDeliveryThreshold * 100)}%` }} /></div>
-            <p className="caption mt-2">Complimentary delivery from {formatINR(COMMERCE.freeDeliveryThreshold)}</p>
+            <div className="mt-3 h-2 overflow-hidden bg-line"><div className="h-full bg-gold transition-[width] duration-300" style={{ width: `${Math.min(100, (subtotal - couponDiscount) / settings.freeDeliveryThreshold * 100)}%` }} /></div>
+            <p className="caption mt-2">Complimentary delivery from {formatINR(settings.freeDeliveryThreshold)}</p>
           </section>
         ) : <p className="border border-success/30 bg-success/5 p-3 text-sm text-success">Complimentary delivery unlocked.</p>}
 
         {hasConflicts ? <div role="alert" className="flex gap-3 border border-danger/30 bg-danger/5 p-4 text-sm text-danger"><AlertTriangle aria-hidden className="mt-0.5 size-5 shrink-0" /><p>Some items have a stock or price update. Review each flagged item before checkout.</p></div> : null}
 
         {groups.map((group) => {
-          const merchant = merchants.find((candidate) => candidate.id === group.merchantId);
+          const merchantName = group.items[0]?.merchantName ?? "SELVARQ maker";
           return (
             <section key={group.merchantId} aria-labelledby={`merchant-${group.merchantId}`} className="border border-line">
-              <h2 id={`merchant-${group.merchantId}`} className="border-b border-line bg-pearl px-4 py-3 text-xs font-medium uppercase tracking-brand text-indigo">{merchant?.name ?? "SELVARQ maker"}</h2>
+              <h2 id={`merchant-${group.merchantId}`} className="border-b border-line bg-pearl px-4 py-3 text-xs font-medium uppercase tracking-brand text-indigo">{merchantName}</h2>
               <ul className="divide-y divide-line">
                 {group.items.map((item) => {
-                  const product = products.find((candidate) => candidate.id === item.productId);
-                  const variant = product?.variants.find((candidate) => candidate.id === item.variantId);
-                  if (!product || !variant) {
-                    return <li key={item.variantId} className="flex items-center justify-between gap-4 p-4 text-sm" role="alert"><span>This item is no longer available.</span><button type="button" onClick={() => removeItem(item.variantId)} className="min-h-11 text-danger underline">Remove</button></li>;
-                  }
-                  const changedPrice = !item.priceConfirmed && product.price !== item.unitPrice;
-                  const shownPrice = item.priceConfirmed ? item.unitPrice : product.price;
-                  const availableStock = item.stock ?? variant.stock;
-                  const insufficientStock = availableStock < item.quantity || availableStock === 0;
-                  const otherSizes = product.variants.filter((candidate) => candidate.color === variant.color);
+                  const availableStock = item.stock;
+                  const insufficientStock = availableStock !== undefined && (availableStock < item.quantity || availableStock === 0);
+                  const href = item.slug ? `/product/${item.slug}` : "/shop";
                   return (
                     <li key={item.variantId} className="grid grid-cols-[5.5rem_1fr] gap-4 p-4 sm:grid-cols-[7rem_1fr_auto]">
-                      <Link href={`/product/${product.slug}`} className="block self-start"><MediaImage src={product.imageIds[0]} alt={product.name} ratio="4/5" sizes="112px" /></Link>
+                      <Link href={href} className="block self-start"><MediaImage src={item.imageId} alt={item.name} ratio="4/5" sizes="112px" /></Link>
                       <div className="min-w-0">
-                        <Link href={`/product/${product.slug}`} className="font-medium text-ink hover:text-indigo">{product.name}</Link>
-                        <p className="mt-1 text-xs text-muted">{variant.color} · {product.fabric}</p>
+                        <Link href={href} className="font-medium text-ink hover:text-indigo">{item.name}</Link>
+                        <p className="mt-1 text-xs text-muted">{item.color} · Size {item.size}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <label className="text-xs text-muted" htmlFor={`size-${variant.id}`}>Size</label>
-                          <select id={`size-${variant.id}`} value={variant.id} onChange={(event) => {
-                            const nextVariant = otherSizes.find((candidate) => candidate.id === event.target.value);
-                            if (nextVariant) updateItem(item.variantId, { variantId: nextVariant.id, color: nextVariant.color, size: nextVariant.size, stock: nextVariant.stock });
-                          }} className="min-h-9 border border-line bg-ivory px-2 text-xs">
-                            {otherSizes.map((candidate) => <option key={candidate.id} value={candidate.id} disabled={candidate.stock < 1}>{candidate.size}{candidate.stock < 1 ? " · sold out" : ""}</option>)}
-                          </select>
-                          <span className="text-xs text-muted">{availableStock > 0 ? `${availableStock} available` : "Out of stock"}</span>
+                          <span className="text-xs text-muted">{availableStock === undefined ? "" : availableStock > 0 ? `${availableStock} available` : "Out of stock"}</span>
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-3">
-                          <QuantityStepper value={item.quantity} onChange={(quantity) => setQuantity(item.variantId, quantity)} max={Math.max(1, Math.min(10, availableStock))} disabled={availableStock < 1} />
+                          <QuantityStepper value={item.quantity} onChange={(quantity) => setQuantity(item.variantId, quantity)} max={Math.max(1, Math.min(10, availableStock ?? 10))} disabled={availableStock === 0} />
                           <button type="button" onClick={() => moveToWishlist(item.productId, item.variantId)} className="inline-flex min-h-11 items-center gap-1 text-xs text-indigo underline underline-offset-4"><Heart aria-hidden className="size-4" /> Move to wishlist</button>
-                          <button type="button" onClick={() => removeItem(item.variantId)} aria-label={`Remove ${product.name}`} className="inline-flex min-h-11 items-center gap-1 text-xs text-muted underline underline-offset-4"><Trash2 aria-hidden className="size-4" /> Remove</button>
+                          <button type="button" onClick={() => removeItem(item.variantId)} aria-label={`Remove ${item.name}`} className="inline-flex min-h-11 items-center gap-1 text-xs text-muted underline underline-offset-4"><Trash2 aria-hidden className="size-4" /> Remove</button>
                         </div>
-                        {changedPrice ? <div role="alert" className="mt-3 flex flex-wrap items-center gap-2 text-xs text-danger"><span>Price changed to {formatINR(product.price)}.</span><button type="button" onClick={() => updateItem(item.variantId, { unitPrice: product.price, mrp: product.mrp, priceConfirmed: true })} className="min-h-9 font-medium underline">Accept new price</button></div> : null}
-                        {insufficientStock ? <p role="alert" className="mt-2 text-xs text-danger">{availableStock ? `Only ${availableStock} left; lower the quantity to continue.` : "This size is out of stock. Choose another size or remove this item."}</p> : null}
+                        {insufficientStock ? <p role="alert" className="mt-2 text-xs text-danger">{availableStock ? `Only ${availableStock} left; lower the quantity to continue.` : "This size is out of stock. Choose another size on the product page or remove this item."}</p> : null}
                       </div>
-                      <div className="col-start-2 text-right sm:col-start-3"><Price price={shownPrice} mrp={product.mrp} size="sm" /></div>
+                      <div className="col-start-2 text-right sm:col-start-3"><Price price={item.unitPrice} mrp={item.mrp} size="sm" /></div>
                     </li>
                   );
                 })}

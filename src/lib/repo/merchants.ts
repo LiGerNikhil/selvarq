@@ -1,5 +1,5 @@
-import { merchants } from "@/data";
 import type { Merchant, MerchantStatus } from "@/data";
+import { getAdminMerchants } from "@/lib/admin-store";
 import { getMerchantProfile } from "@/lib/demo-merchant-store";
 import { paginate, type Page, type PageOptions } from "./types";
 
@@ -23,16 +23,16 @@ function currentProfile(merchant: Merchant): Merchant {
 
 export const mockMerchantsRepository: MerchantsRepository = {
   async getById(id) {
-    const merchant = merchants.find((item) => item.id === id);
+    const merchant = getAdminMerchants().find((item) => item.id === id);
     return merchant ? currentProfile(merchant) : undefined;
   },
   async getBySlug(slug) {
-    const merchant = merchants.find((item) => item.slug === slug);
+    const merchant = getAdminMerchants().find((item) => item.slug === slug);
     return merchant ? currentProfile(merchant) : undefined;
   },
   async list(query = {}) {
     const search = query.search?.trim().toLocaleLowerCase("en-IN");
-    const results = merchants.map(currentProfile).filter((merchant) =>
+    const results = getAdminMerchants().map(currentProfile).filter((merchant) =>
       (!query.status || merchant.status === query.status) &&
       (!query.city || merchant.city.toLocaleLowerCase("en-IN") === query.city.toLocaleLowerCase("en-IN")) &&
       (!search || `${merchant.name} ${merchant.bio} ${merchant.city}`.toLocaleLowerCase("en-IN").includes(search)),

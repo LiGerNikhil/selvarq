@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { merchants, products, type Coupon } from "@/data";
+import type { Coupon } from "@/data";
 import { getSession } from "@/lib/auth/demo-session";
-import { COMMERCE, gstRateFor } from "@/lib/config";
+import { gstRateFor } from "@/lib/config";
+import { getAdminSettings } from "@/lib/admin-store";
 import { checkoutSchema } from "@/lib/checkout-schema";
-import { ordersRepository, couponsRepository } from "@/lib/repo";
+import { ordersRepository, couponsRepository, productsRepository, merchantsRepository } from "@/lib/repo";
 
 interface CheckoutConflict {
   productId: string;
@@ -26,8 +27,13 @@ export async function POST(request: NextRequest) {
   }
 
   const input = parsed.data;
+  const [catalogue, merchantList] = await Promise.all([
+    productsRepository.search({ pageSize: 500 }),
+    merchantsRepository.list({ pageSize: 500 }),
+  ]);
+  const productById = new Map(catalogue.items.map((product) => [product.id, product]));
   const currentLines = input.items.map((line) => {
-    const product = products.find((item) => item.id === line.productId && item.status === "active");
+    const product = productById.get(line.productId);
     const variant = product?.variants.find((item) => item.id === line.variantId);
     return { requested: line, product, variant };
   });
@@ -77,15 +83,16 @@ export async function POST(request: NextRequest) {
     if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
     discount = Math.min(discount, eligibleSubtotal);
   }
+  const settings = getAdminSettings();
   const shipping = input.deliveryMethod === "express"
-    ? COMMERCE.standardShippingFee * 2
-    : subtotal - discount >= COMMERCE.freeDeliveryThreshold ? 0 : COMMERCE.standardShippingFee;
+    ? settings.standardShippingFee * 2
+    : subtotal - discount >= settings.freeDeliveryThreshold ? 0 : settings.standardShippingFee;
   const gstIncluded = currentLines.reduce((sum, line) => {
     if (!line.product) return sum;
     const gross = line.product.price * line.requested.quantity;
     const eligible = !coupon?.merchantId || coupon.merchantId === line.product.merchantId;
     const lineDiscount = eligible && eligibleSubtotal ? Math.round(discount * gross / eligibleSubtotal) : 0;
-    const rate = gstRateFor(line.product.price);
+    const rate = gstRateFor(line.product.price, settings.gstSlabs);
     return sum + Math.round((gross - lineDiscount) * rate / (100 + rate));
   }, 0);
   const session = await getSession();
@@ -109,7 +116,7 @@ export async function POST(request: NextRequest) {
   const orderNumber = `SVQ-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const items = currentLines.map(({ requested, product, variant }, index) => {
     if (!product || !variant) throw new Error("Validated checkout line lost its product or variant.");
-    const sellerName = merchants.find((merchant) => merchant.id === product.merchantId)?.name ?? "SELVARQ Maker";
+    const sellerName = merchantList.items.find((merchant) => merchant.id === product.merchantId)?.name ?? "SELVARQ Maker";
     return {
       productId: product.id,
       name: product.name,

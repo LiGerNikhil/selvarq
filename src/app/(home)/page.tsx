@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import {
-  banners,
   brandStoryChapters,
-  categories,
-  collections,
-  merchants,
-  products,
-  stories,
 } from "@/data";
+import type { AdminCollection } from "@/lib/admin-store";
+import { getAdminBanners, getAdminCategories, getAdminCollections, getAdminMerchants, getAdminStories } from "@/lib/admin-store";
+import { getPublicDemoProducts } from "@/lib/demo-merchant-store";
 import { BrandStory } from "@/components/home/brand-story";
 import { CategoryTiles } from "@/components/home/category-tiles";
 import { CollectionCarousel } from "@/components/home/collection-carousel";
@@ -21,25 +18,21 @@ import { Testimonials } from "@/components/home/testimonials";
 import { TrustStrip } from "@/components/home/trust-strip";
 import { SectionHeading } from "@/components/home/category-tiles";
 import { BRAND } from "@/lib/config";
+import { pageMetadata, SITE_URL } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getSession } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";
 import { ForYouRail } from "@/components/home/for-you-rail";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const siteUrl = SITE_URL;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Considered Indian Clothing",
   description: "Explore thoughtfully made Indian clothing from SELVARQ and independent makers. Discover handloom textures, considered details and pieces made to last.",
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "SELVARQ | Considered Indian Clothing",
-    description: "Clothing shaped by good cloth, skilled makers and thoughtful finishing.",
-    url: siteUrl,
-    type: "website",
-  },
-};
+  path: "/",
+});
 
-function structuredData() {
+function structuredData(collections: AdminCollection[]) {
   return [
     {
       "@context": "https://schema.org",
@@ -79,6 +72,11 @@ function structuredData() {
 export default async function HomePage() {
   const session = await getSession();
   const account = session?.role === "customer" ? getDemoAccountById(session.userId) : undefined;
+  const banners = getAdminBanners();
+  const categories = getAdminCategories();
+  const collections = getAdminCollections();
+  const stories = getAdminStories();
+  const products = getPublicDemoProducts();
   const activeBanners = banners.filter((banner) => banner.active);
   const rootCategories = categories.filter((category) => category.parentId === null);
   const activeProducts = products.filter((product) => product.status === "active");
@@ -86,25 +84,28 @@ export default async function HomePage() {
   const bestsellers = [...activeProducts]
     .sort((a, b) => b.rating.count - a.rating.count || b.rating.average - a.rating.average)
     .slice(0, 8);
-  const makerHighlights = merchants.filter((merchant) => merchant.status === "approved" && merchant.id !== "sharda-garments").slice(0, 4);
+  const makerHighlights = getAdminMerchants().filter((merchant) => merchant.status === "approved" && merchant.id !== "sharda-garments").slice(0, 4);
   const journalStories = stories.slice(0, 3);
+  const featuredCollections = collections.filter((collection) => collection.featured);
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()).replace(/</g, "\\u003c") }} />
+      <JsonLd data={structuredData(featuredCollections)} />
       <EditorialHero banners={activeBanners} />
       <TrustStrip />
-      <CategoryTiles categories={rootCategories} products={activeProducts} />
+      {rootCategories.length ? <CategoryTiles categories={rootCategories} products={activeProducts} /> : null}
       <BrandStory chapters={brandStoryChapters} />
-      <CollectionCarousel collections={collections} />
+      {featuredCollections.length ? <CollectionCarousel collections={featuredCollections} /> : null}
 
-      <section className="page-container py-16 md:py-24">
-        <SectionHeading eyebrow="Thoughtful pieces, just in" title="The SELVARQ edit" href="/shop" linkText="Shop all" />
-        <HomeProductTabs newArrivals={newArrivals} bestsellers={bestsellers} />
-      </section>
+      {newArrivals.length || bestsellers.length ? (
+        <section className="page-container py-16 md:py-24">
+          <SectionHeading eyebrow="Thoughtful pieces, just in" title="The SELVARQ edit" href="/shop" linkText="Shop all" />
+          <HomeProductTabs newArrivals={newArrivals} bestsellers={bestsellers} />
+        </section>
+      ) : null}
 
         {account?.preferences.onboardingComplete ? <ForYouRail products={activeProducts} categories={categories} preferences={account.preferences} /> : null}
-        <MakersSpotlight merchants={makerHighlights} />
+        {makerHighlights.length ? <MakersSpotlight merchants={makerHighlights} /> : null}
       <CraftProcess />
       <Testimonials />
       <JournalTeaser stories={journalStories} />

@@ -7,11 +7,9 @@ import { FormsSection } from "./_sections/forms";
 import { NavigationSection } from "./_sections/navigation";
 import { OverlaysSection } from "./_sections/overlays";
 import { TokensSection } from "./_sections/tokens";
+import { privateMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Style guide",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = privateMetadata("Style guide", "/styleguide");
 
 const links = [
   ["tokens", "Colour and type"],

@@ -5,9 +5,10 @@ import { Check, PackageCheck, Truck } from "lucide-react";
 import { MediaImage } from "@/components/ui/media-image";
 import { formatDate, formatINR } from "@/lib/format";
 import { ordersRepository } from "@/lib/repo";
+import { privateMetadata } from "@/lib/seo";
 import "./celebration.css";
 
-export const metadata: Metadata = { title: "Order confirmed", robots: { index: false, follow: false } };
+export const metadata: Metadata = privateMetadata("Order confirmed", "/order");
 
 export default async function OrderConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

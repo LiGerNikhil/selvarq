@@ -65,7 +65,7 @@ export function AddressManager({ initial }: { initial: Address[] }) {
   return <div className="space-y-5">
     {addresses.map((address) => <article key={address.id} className="border border-line p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-medium">{address.label}</h2>{address.isDefault ? <span className="bg-pearl px-2 py-1 text-[10px] uppercase tracking-wide text-indigo">Default</span> : null}</div>
+        <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-medium">{address.label}</h2>{address.isDefault ? <span className="bg-pearl px-2 py-1 text-[11px] uppercase tracking-wide text-indigo">Default</span> : null}</div>
           <p className="mt-2 text-sm text-muted">{address.fullName} · {address.phone}<br />{address.line1}{address.line2 ? `, ${address.line2}` : ""}{address.landmark ? `, near ${address.landmark}` : ""}<br />{address.city}, {address.state} {address.pincode}</p></div>
         <div className="flex gap-2"><Button variant="ghost" size="sm" onClick={() => startEdit(address)}>Edit</Button><Button variant="quiet" size="sm" onClick={() => void remove(address.id)}>Remove</Button></div>
       </div>

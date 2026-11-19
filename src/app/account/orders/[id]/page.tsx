@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Order detail", "/account/orders");
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MediaImage } from "@/components/ui/media-image";
@@ -8,7 +13,6 @@ import { formatDate, formatINR } from "@/lib/format";
 import { getSession } from "@/lib/auth/demo-session";
 import { ordersRepository } from "@/lib/repo";
 import { getDemoOrderRequests } from "@/lib/demo-order-requests";
-import { products } from "@/data";
 
 export default async function AccountOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -22,11 +26,9 @@ export default async function AccountOrderDetailPage({ params }: { params: Promi
   return <section><p className="eyebrow mb-2">Placed {formatDate(order.placedAt)}</p><h2 className="display-md text-indigo">Order {order.orderNumber}</h2>
     <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(15rem,0.7fr)]">
       <div className="space-y-7">
-        <section className="border border-line p-4 sm:p-5"><h3 className="mb-4 text-sm font-medium">Items in this order</h3><ul className="space-y-4">{order.items.map((item) => {
-          const product = products.find((candidate) => candidate.id === item.productId);
-          const variant = product?.variants.find((candidate) => candidate.id === item.variantId);
-          return <li key={item.variantId} className="flex gap-3"><div className="w-16 shrink-0"><MediaImage src={item.imageId} alt="" ratio="4/5" sizes="64px" /></div><div className="min-w-0 flex-1"><Link href={`/product/${product?.slug ?? item.productId}`} className="text-sm font-medium text-indigo underline-offset-4 hover:underline">{item.name}</Link><p className="caption mt-1">{item.color ?? variant?.color ?? "Colour"} · {item.size ?? variant?.size ?? "Size"} · Qty {item.quantity}</p></div><span className="text-sm">{formatINR(item.unitPrice * item.quantity)}</span></li>;
-        })}</ul></section>
+        <section className="border border-line p-4 sm:p-5"><h3 className="mb-4 text-sm font-medium">Items in this order</h3><ul className="space-y-4">{order.items.map((item) => (
+          <li key={item.variantId} className="flex gap-3"><div className="w-16 shrink-0"><MediaImage src={item.imageId} alt="" ratio="4/5" sizes="64px" /></div><div className="min-w-0 flex-1"><Link href="/shop" className="text-sm font-medium text-indigo underline-offset-4 hover:underline">{item.name}</Link><p className="caption mt-1">{item.color ?? "Colour"} · {item.size ?? "Size"} · Qty {item.quantity}</p></div><span className="text-sm">{formatINR(item.unitPrice * item.quantity)}</span></li>
+        ))}</ul></section>
         <section className="border border-line p-4 sm:p-5"><div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-sm font-medium">Delivery progress</h3>{order.trackingNumber ? <span className="text-xs text-muted">{order.trackingNumber}</span> : null}</div><TrackingTimeline status={order.status} trackingNumber={order.trackingNumber} /></section>
         <section className="border border-line p-4 sm:p-5"><h3 className="mb-4 text-sm font-medium">Need help with this order?</h3><OrderRequestForm orderId={order.id} canCancel={canCancel} canReturn={canReturn} initialRequests={orderRequests} /></section>
       </div>

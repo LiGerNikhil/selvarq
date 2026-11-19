@@ -4,25 +4,25 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
 
-const offers = [
+const fallbackOffers = [
   { text: "Complimentary delivery on orders above Rs 1,999", href: "/shop" },
   { text: "Discover considered pieces from independent Indian makers", href: "/shop" },
   { text: "Easy returns within 7 days on eligible items", href: "/shipping" },
 ];
 
-export function AnnouncementBar() {
+export function AnnouncementBar({ offers = fallbackOffers }: { offers?: { id?: string; text: string; href: string }[] }) {
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || offers.length < 2) return;
     const timer = window.setInterval(() => setActive((current) => (current + 1) % offers.length), 6000);
     return () => window.clearInterval(timer);
-  }, [paused]);
+  }, [paused, offers.length]);
 
-  if (dismissed) return null;
-  const offer = offers[active];
+  if (dismissed || !offers.length) return null;
+  const offer = offers[active] ?? offers[0]!;
   const move = (direction: number) => setActive((current) => (current + direction + offers.length) % offers.length);
 
   return (

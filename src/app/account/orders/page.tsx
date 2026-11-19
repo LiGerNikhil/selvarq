@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Your orders", "/account/orders");
+
 import Link from "next/link";
 import { MediaImage } from "@/components/ui/media-image";
 import { formatDate, formatINR } from "@/lib/format";

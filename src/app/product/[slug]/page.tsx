@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Accordion, type AccordionItem } from "@/components/ui/accordion";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -7,10 +8,12 @@ import { ProductPurchase } from "@/components/product/product-purchase";
 import { ProductRecommendations, RecentlyViewed } from "@/components/product/product-related";
 import { ProductReviews } from "@/components/product/product-reviews";
 import { Rating } from "@/components/ui/rating";
-import { collections, products } from "@/data";
 import { getSession } from "@/lib/auth/demo-session";
 import { BRAND, COMMERCE } from "@/lib/config";
 import { formatINR } from "@/lib/format";
+import { isPlaceholder, resolveMediaSrc, resolveShareImage } from "@/lib/media";
+import { absoluteUrl, breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
 import {
   categoriesRepository,
   collectionsRepository,
@@ -24,7 +27,9 @@ import {
 type RouteProps = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  return products.filter((product) => product.status === "active").map(({ slug }) => ({ slug }));
+  // Catalogue content comes from the database at request time, so product
+  // routes are rendered on demand instead of being baked at build time.
+  return [];
 }
 
 async function findProduct(slug: string) {
@@ -35,19 +40,19 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
   const { slug } = await params;
   const product = await findProduct(slug);
   if (!product) return { title: "Piece not found" };
-  const title = product.seo.title || `${product.name} | ${BRAND.name}`;
   const description = product.seo.description || product.description;
-  return {
+  const title = (product.seo.title || product.name).replace(/\s*\|\s*SELVARQ\s*$/i, "");
+  const firstImage = product.imageIds[0];
+  // Social platforms do not render the generated SVG placeholders, so the
+  // share image is only set for raster media (including Cloudinary ids).
+  const socialImage = resolveShareImage(firstImage);
+  return pageMetadata({
     title,
     description,
-    alternates: { canonical: `/product/${product.slug}` },
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      images: product.imageIds[0] ? [`/api/placeholder/${encodeURIComponent(product.imageIds[0].replace(/^placeholder:/, ""))}`] : undefined,
-    },
-  };
+    path: `/product/${product.slug}`,
+    image: socialImage,
+    ...(socialImage ? { imageAlt: product.name } : {}),
+  });
 }
 
 function ProductQuestions({ fabric, fit, care }: { fabric: string; fit: string; care: string[] }) {
@@ -58,10 +63,6 @@ function ProductQuestions({ fabric, fit, care }: { fabric: string; fit: string; 
     { id: "delivery", title: "When will it arrive, and can I return it?", content: <p className="text-sm leading-6 text-muted">Estimated delivery is 3 to 7 days. Eligible items may be returned within 7 days of delivery, subject to the returns policy.</p> },
   ];
   return <section id="questions" className="py-10 md:py-14"><p className="eyebrow mb-2">Good to know</p><h2 className="display-lg mb-5 text-indigo">Questions & answers</h2><Accordion items={items} headingLevel={3} /></section>;
-}
-
-function safeJsonLd(value: unknown) {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 export default async function ProductPage({ params }: RouteProps) {
@@ -84,7 +85,9 @@ export default async function ProductPage({ params }: RouteProps) {
   if (!merchant || merchant.status !== "approved" || !category) notFound();
 
   const rootCategory = category.parentId ? allCategories.find((item) => item.id === category.parentId) : undefined;
-  const collection = collections.find((item) => product.collectionIds.includes(item.id));
+  const collection = product.collectionIds[0]
+    ? await collectionsRepository.getById(product.collectionIds[0])
+    : undefined;
   const deliveredOrders = session?.role === "customer"
     ? await ordersRepository.list({ userId: session.userId, status: "delivered", pageSize: 100 })
     : null;
@@ -94,12 +97,14 @@ export default async function ProductPage({ params }: RouteProps) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const productUrl = new URL(`/product/${product.slug}`, baseUrl).toString();
   const inStock = product.variants.some((variant) => variant.stock > 0);
-  const structuredData = {
+  const structuredData = [{
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.description,
-    image: product.imageIds.map((id) => new URL(`/api/placeholder/${encodeURIComponent(id.replace(/^placeholder:/, ""))}`, baseUrl).toString()),
+    image: product.imageIds.map((id) => isPlaceholder(id)
+      ? new URL(`/api/placeholder/${encodeURIComponent(id.replace(/^placeholder:/, ""))}`, baseUrl).toString()
+      : absoluteUrl(resolveMediaSrc(id))),
     sku: product.variants[0]?.sku,
     brand: { "@type": "Brand", name: BRAND.name },
     category: category.name,
@@ -119,12 +124,19 @@ export default async function ProductPage({ params }: RouteProps) {
       bestRating: 5,
       worstRating: 1,
     } : undefined,
-  };
+  },
+  breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    ...(rootCategory ? [{ name: rootCategory.name, path: `/category/${rootCategory.slug}` }] : []),
+    { name: category.name, path: `/category/${category.slug}` },
+    { name: product.name, path: `/product/${product.slug}` },
+  ])];
   const accordions: AccordionItem[] = [
     { id: "details", title: "Details", content: <div className="space-y-3 text-sm leading-6 text-muted"><p>{product.description}</p><ul className="list-inside list-disc space-y-1">{product.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul></div> },
     { id: "fabric-care", title: "Fabric & care", content: <div className="space-y-3 text-sm leading-6 text-muted"><p><strong className="text-ink">Fabric:</strong> {product.fabric}</p><p><strong className="text-ink">Fit:</strong> {product.fit}</p><ul className="list-inside list-disc space-y-1">{product.care.map((instruction) => <li key={instruction}>{instruction}</li>)}</ul></div> },
     { id: "shipping-returns", title: "Shipping & returns", content: <div className="space-y-2 text-sm leading-6 text-muted"><p>Most orders arrive within 3 to 7 business days. Delivery charges and serviceability are confirmed at checkout.</p><p>Eligible items may be returned within {COMMERCE.returnWindowDays} days of delivery if unused and with original tags. See our returns policy for full terms.</p></div> },
-    { id: "seller", title: "About the seller", content: <div className="space-y-3 text-sm leading-6 text-muted"><p>{merchant.bio}</p><p>{merchant.city} · Selling on SELVARQ since {new Date(merchant.joinedAt).getFullYear()}</p><a href={`/merchant/${merchant.slug}/store`} className="inline-flex min-h-11 items-center text-indigo underline underline-offset-4">Visit {merchant.name}&apos;s storefront</a></div> },
+    { id: "seller", title: "About the seller", content: <div className="space-y-3 text-sm leading-6 text-muted"><p>{merchant.bio}</p><p>{merchant.city} · Selling on SELVARQ since {new Date(merchant.joinedAt).getFullYear()}</p><Link href={`/merchant/${merchant.slug}/store`} className="inline-flex min-h-11 items-center text-indigo underline underline-offset-4">Visit {merchant.name}&apos;s storefront</Link></div> },
   ];
   const categoriesForCrumbs = [
     { label: "Home", href: "/" },
@@ -136,18 +148,19 @@ export default async function ProductPage({ params }: RouteProps) {
 
   return (
     <main className="pb-24 sm:pb-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }} />
+      <JsonLd data={structuredData} />
       <div className="page-container pt-5 md:pt-8">
         <Breadcrumbs items={categoriesForCrumbs} className="mb-5" />
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] lg:gap-12">
           <ProductGallery images={product.imageIds} name={product.name} />
           <div className="lg:sticky lg:top-6">
-            {collection ? <a href={`/collection/${collection.slug}`} className="eyebrow text-gold-ink hover:underline">{collection.name}</a> : <p className="eyebrow text-gold-ink">{category.name}</p>}
+            {collection ? <Link href={`/collection/${collection.slug}`} className="eyebrow inline-flex min-h-8 items-center text-gold-ink hover:underline">{collection.name}</Link> : <p className="eyebrow text-gold-ink">{category.name}</p>}
             <h1 className="display-lg mt-2 text-indigo">{product.name}</h1>
-            <a href={`/merchant/${merchant.slug}/store`} className="mt-2 inline-flex min-h-11 items-center text-sm text-muted hover:text-indigo hover:underline">
+            <Link href={`/merchant/${merchant.slug}/store`} className="mt-2 inline-flex min-h-11 items-center text-sm text-muted hover:text-indigo hover:underline">
               By <span className="ml-1 font-medium text-ink">{merchant.name}</span>
-            </a>
-            <a href="#reviews" className="mt-1 flex min-h-11 w-fit items-center gap-2 text-sm text-indigo underline-offset-4 hover:underline" aria-label={`Rated ${product.rating.average} out of 5, read ${product.rating.count} reviews`}>
+            </Link>
+            <a href="#reviews" className="mt-1 flex min-h-11 w-fit items-center gap-2 text-sm text-indigo underline-offset-4 hover:underline">
+              <span className="sr-only">Read reviews. </span>
               <Rating value={product.rating.average} size="sm" showValue />
               <span>({product.rating.count} reviews)</span>
             </a>
@@ -156,7 +169,7 @@ export default async function ProductPage({ params }: RouteProps) {
               <p className="text-3xl font-medium text-ink">{formatINR(product.price)} <span className="text-sm font-normal text-muted">Inclusive of all taxes</span></p>
               {product.mrp > product.price ? <p className="mt-1 text-sm text-muted">MRP <s>{formatINR(product.mrp)}</s><span className="ml-2 font-medium text-burgundy">{Math.floor((product.mrp - product.price) / product.mrp * 100)}% off</span></p> : null}
             </div>
-            <ProductPurchase product={product} coupons={activeCoupons} />
+            <ProductPurchase product={product} coupons={activeCoupons} merchantName={merchant.name} />
           </div>
         </div>
 

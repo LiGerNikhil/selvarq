@@ -8,18 +8,22 @@ import { ProductCard } from "@/components/product/product-card";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MediaImage } from "@/components/ui/media-image";
+import { ImageUploadButton, ImageUrlImporter } from "@/components/ui/image-uploader";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/store/toast-store";
 import { merchantProductSchema } from "@/lib/merchant-schemas";
 import type { MerchantProductInput } from "@/lib/demo-merchant-store";
+import type { UploadedImage } from "@/lib/upload-client";
 
 const sizes: ProductVariant["size"][] = ["XS", "S", "M", "L", "XL", "XXL"];
 const colorsFallback = [{ name: "Ivory", hex: "#F4EFE4" }];
 const paise = (value: string) => Math.round(Number(value) * 100);
 
-export function MerchantProductEditor({ categories, merchantId, merchantName, initialProduct }: { categories: Category[]; merchantId: string; merchantName: string; initialProduct?: Product }) {
+export function MerchantProductEditor({ categories, merchantId, merchantName, initialProduct, mode = "merchant" }: { categories: Category[]; merchantId: string; merchantName: string; initialProduct?: Product; mode?: "merchant" | "admin" }) {
   const router = useRouter();
+  const isAdmin = mode === "admin";
+  const backHref = isAdmin ? "/admin/products" : "/merchant/products";
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [categoryId, setCategoryId] = useState(initialProduct?.categoryId ?? categories[0]?.id ?? "");
   const [description, setDescription] = useState(initialProduct?.description ?? "");
@@ -41,6 +45,30 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
   const [busy, setBusy] = useState(false);
   const [dragged, setDragged] = useState<number | null>(null);
 
+  // Show every category, not just sub-categories: a store may only have
+  // top-level categories, and an empty picker looks broken. Parents come first,
+  // each followed by its children, so the list reads as a small tree.
+  const categoryOptions = useMemo(() => {
+    const known = new Set(categories.map((category) => category.id));
+    const roots = categories.filter((category) => !category.parentId || !known.has(category.parentId));
+    const options: { id: string; label: string }[] = [];
+    const seen = new Set<string>();
+    for (const root of roots) {
+      if (seen.has(root.id)) continue;
+      options.push({ id: root.id, label: root.name });
+      seen.add(root.id);
+      for (const child of categories) {
+        if (child.parentId !== root.id || seen.has(child.id)) continue;
+        options.push({ id: child.id, label: `${root.name} · ${child.name}` });
+        seen.add(child.id);
+      }
+    }
+    for (const category of categories) {
+      if (!seen.has(category.id)) options.push({ id: category.id, label: category.name });
+    }
+    return options;
+  }, [categories]);
+
   const colorSizes = useMemo(() => colors.flatMap((color) => selectedSizes.map((size) => {
     const key = `${color.name}|${size}`;
     return { color, size, key, value: variants[key] ?? { sku: `${name.slice(0, 3).toUpperCase() || "SKU"}-${color.name.slice(0, 3).toUpperCase()}-${size}`, stock: 0, price: price || "0" } };
@@ -50,9 +78,8 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
     setVariants((current) => ({ ...current, [key]: { ...(current[key] ?? { sku: "", stock: 0, price: price || "0" }), ...patch } }));
   }
 
-  function addImage(files: FileList | null) {
-    if (!files?.length) return;
-    const additions = Array.from(files).slice(0, 6 - images.length).map((file) => ({ id: `placeholder:merchant-${file.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`, label: file.name }));
+  function addUploaded(assets: UploadedImage[]) {
+    const additions = assets.map((asset) => ({ id: asset.publicId, label: asset.originalName }));
     setImages((current) => [...current, ...additions].slice(0, 6));
   }
 
@@ -104,12 +131,21 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
     };
     const parsed = merchantProductSchema.safeParse(payload);
     if (!parsed.success) {
-      toast.error("Check the product details", { description: parsed.error.issues[0]?.message ?? "Complete the required fields." });
+      const labels: Record<string, string> = {
+        name: "Product name", categoryId: "Category", description: "Short description", story: "Story",
+        imageIds: "Images", colors: "Colours", sizes: "Sizes", variants: "Variants", price: "Selling price",
+        mrp: "MRP", fabric: "Fabric", fit: "Fit", care: "Care", highlights: "Highlights", tags: "Tags", seo: "SEO",
+      };
+      const messages = parsed.error.issues.map((issue) => {
+        const field = labels[String(issue.path[0] ?? "")];
+        return field ? `${field}: ${issue.message}` : issue.message;
+      });
+      toast.error("Check the product details", { description: [...new Set(messages)].slice(0, 2).join(" · ") || "Complete the required fields." });
       return;
     }
     setBusy(true);
     try {
-      const response = await fetch(initialProduct ? `/api/merchant/products/${initialProduct.id}` : "/api/merchant/products", {
+      const response = await fetch(initialProduct ? `/api/${isAdmin ? "admin" : "merchant"}/products/${initialProduct.id}` : `/api/${isAdmin ? "admin" : "merchant"}/products`, {
         method: initialProduct ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
@@ -117,7 +153,7 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
       const result = await response.json() as { error?: string; product?: Product };
       if (!response.ok || !result.product) throw new Error(result.error ?? "Could not save this listing.");
       toast.success(nextStatus === "active" ? "Product published" : "Draft saved", { description: result.product.name });
-      router.push("/merchant/products");
+      router.push(backHref);
       router.refresh();
     } catch (error) {
       toast.error("Could not save product", { description: error instanceof Error ? error.message : "Please try again." });
@@ -150,11 +186,11 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
   };
 
   return <div>
-    <div className="mb-6 flex items-center justify-between gap-3"><div><p className="eyebrow">Catalogue</p><h2 className="display-md mt-1 text-indigo">{initialProduct ? "Edit product" : "Create product"}</h2></div><ButtonLink href="/merchant/products" variant="ghost"><ArrowLeft aria-hidden className="mr-2 size-4" />Back to products</ButtonLink></div>
+    <div className="mb-6 flex items-center justify-between gap-3"><div><p className="eyebrow">{isAdmin ? "Marketplace catalogue" : "Catalogue"}</p><h2 className="display-md mt-1 text-indigo">{initialProduct ? "Edit product" : "Create product"}</h2></div><ButtonLink href={backHref} variant="ghost"><ArrowLeft aria-hidden className="mr-2 size-4" />Back to products</ButtonLink></div>
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(17rem,0.7fr)]">
       <div className="space-y-5">
-        <section className="space-y-4 border border-line p-4 sm:p-5"><h3 className="font-medium text-indigo">Product basics</h3><Input label="Product name" value={name} onChange={(event) => setName(event.target.value)} required /><Select label="Category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>{categories.filter((item) => item.parentId).map((item) => { const parent = categories.find((category) => category.id === item.parentId); return <option key={item.id} value={item.id}>{parent ? `${parent.name} · ${item.name}` : item.name}</option>; })}</Select><Textarea label="Short description" value={description} onChange={(event) => setDescription(event.target.value)} /><Textarea label="The story behind this piece" value={story} onChange={(event) => setStory(event.target.value)} /></section>
-        <section className="border border-line p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h3 className="font-medium text-indigo">Product imagery</h3><p className="caption mt-1">Add 3–6 images. Uploads are simulated as local placeholder previews.</p></div><label className="cursor-pointer text-sm text-indigo underline">Add images<input type="file" accept="image/*" multiple className="sr-only" onChange={(event) => addImage(event.target.files)} /></label></div><ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <li key={image.id} draggable onDragStart={() => setDragged(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragged === null || dragged === index) return; setImages((current) => { const next = [...current]; const [item] = next.splice(dragged, 1); if (item) next.splice(index, 0, item); return next; }); setDragged(null); }} className="group border border-line p-2"><div className="relative"><MediaImage src={image.id} alt={image.label} ratio="4/5" sizes="(min-width: 640px) 25vw, 45vw" /><span className="absolute left-2 top-2 bg-ivory/90 p-1" title="Drag to reorder"><GripVertical aria-hidden className="size-4" /></span>{index === 0 ? <span className="absolute right-2 top-2 bg-indigo px-2 py-1 text-[10px] uppercase tracking-wide text-ivory">Cover</span> : null}</div><p className="mt-2 truncate text-xs">{image.label}</p><div className="mt-2 flex items-center justify-between"><div className="flex gap-1"><button type="button" aria-label={`Move image ${index + 1} earlier`} onClick={() => moveImage(index, -1)} className="p-1 text-muted"><ArrowUp aria-hidden className="size-4" /></button><button type="button" aria-label={`Move image ${index + 1} later`} onClick={() => moveImage(index, 1)} className="p-1 text-muted"><ArrowDown aria-hidden className="size-4" /></button></div><button type="button" aria-label={`Remove image ${index + 1}`} onClick={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="p-1 text-danger"><Trash2 aria-hidden className="size-4" /></button></div></li>)}</ul></section>
+        <section className="space-y-4 border border-line p-4 sm:p-5"><h3 className="font-medium text-indigo">Product basics</h3><Input label="Product name" value={name} onChange={(event) => setName(event.target.value)} required /><Select label="Category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required hint={categoryOptions.length ? undefined : "Add a category in Catalog first."}>{categoryOptions.length ? categoryOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>) : <option value="">No categories yet</option>}</Select><Textarea label="Short description" value={description} onChange={(event) => setDescription(event.target.value)} /><Textarea label="The story behind this piece" value={story} onChange={(event) => setStory(event.target.value)} /></section>
+        <section className="border border-line p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-medium text-indigo">Product imagery</h3><p className={`caption mt-1 ${images.length < 3 ? "text-danger" : ""}`}>{images.length}/3 minimum · up to 6 images. Upload a file or paste a link; the first image is the cover.</p></div><ImageUploadButton folder="products" remaining={6 - images.length} onUploaded={addUploaded} label="Add images" /></div><ImageUrlImporter className="mt-3" folder="products" disabled={images.length >= 6} onImported={(asset) => addUploaded([asset])} /><ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <li key={image.id} draggable onDragStart={() => setDragged(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragged === null || dragged === index) return; setImages((current) => { const next = [...current]; const [item] = next.splice(dragged, 1); if (item) next.splice(index, 0, item); return next; }); setDragged(null); }} className="group border border-line p-2"><div className="relative"><MediaImage src={image.id} alt={image.label} ratio="4/5" sizes="(min-width: 640px) 25vw, 45vw" /><span className="absolute left-2 top-2 bg-ivory/90 p-1" title="Drag to reorder"><GripVertical aria-hidden className="size-4" /></span>{index === 0 ? <span className="absolute right-2 top-2 bg-indigo px-2 py-1 text-[11px] uppercase tracking-wide text-ivory">Cover</span> : null}</div><p className="mt-2 truncate text-xs">{image.label}</p><div className="mt-2 flex items-center justify-between"><div className="flex gap-1"><button type="button" aria-label={`Move image ${index + 1} earlier`} onClick={() => moveImage(index, -1)} className="p-1 text-muted"><ArrowUp aria-hidden className="size-4" /></button><button type="button" aria-label={`Move image ${index + 1} later`} onClick={() => moveImage(index, 1)} className="p-1 text-muted"><ArrowDown aria-hidden className="size-4" /></button></div><button type="button" aria-label={`Remove image ${index + 1}`} onClick={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="p-1 text-danger"><Trash2 aria-hidden className="size-4" /></button></div></li>)}</ul></section>
         <section className="space-y-4 border border-line p-4 sm:p-5"><h3 className="font-medium text-indigo">Variants & pricing</h3><div className="grid gap-4 sm:grid-cols-2"><Input label="Selling price (₹)" type="number" min="1" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} /><Input label="MRP (₹)" type="number" min="1" step="0.01" value={mrp} onChange={(event) => setMrp(event.target.value)} /><Input label="Fabric" value={fabric} onChange={(event) => setFabric(event.target.value)} /><Input label="Fit" value={fit} onChange={(event) => setFit(event.target.value)} /></div>
           <div><p className="mb-2 text-sm font-medium">Colours</p><div className="space-y-2">{colors.map((color, index) => <div key={`${color.name}-${index}`} className="grid grid-cols-[1fr_6rem_auto] gap-2"><Input aria-label={`Colour ${index + 1} name`} value={color.name} onChange={(event) => renameColor(index, event.target.value)} /><Input aria-label={`${color.name} colour hex`} value={color.hex} onChange={(event) => setColors((current) => current.map((item, currentIndex) => currentIndex === index ? { ...item, hex: event.target.value } : item))} /><Button type="button" size="sm" variant="quiet" aria-label={`Remove ${color.name}`} onClick={() => setColors((current) => current.filter((_, currentIndex) => currentIndex !== index))}><Trash2 aria-hidden className="size-4" /></Button></div>)}</div><Button type="button" size="sm" variant="ghost" className="mt-2" onClick={() => setColors((current) => [...current, { name: `Colour ${current.length + 1}`, hex: "#C9B89A" }])}><Plus aria-hidden className="mr-1 size-4" />Add colour</Button></div>
           <div><p className="mb-2 text-sm font-medium">Sizes</p><div className="flex flex-wrap gap-2">{sizes.map((size) => <label key={size} className="flex min-h-10 items-center gap-2 border border-line px-3 text-sm"><input type="checkbox" checked={selectedSizes.includes(size)} onChange={(event) => setSelectedSizes((current) => event.target.checked ? [...current, size] : current.filter((item) => item !== size))} />{size}</label>)}</div></div>
@@ -162,7 +198,8 @@ export function MerchantProductEditor({ categories, merchantId, merchantName, in
         </section>
         <section className="space-y-4 border border-line p-4 sm:p-5"><h3 className="font-medium text-indigo">Care, highlights & search</h3><Textarea label="Care instructions (one per line)" value={careText} onChange={(event) => setCareText(event.target.value)} /><Textarea label="Highlights (one per line)" value={highlightsText} onChange={(event) => setHighlightsText(event.target.value)} /><Input label="Tags (comma separated)" value={tagsText} onChange={(event) => setTagsText(event.target.value)} /><Input label="SEO title" value={seoTitle} onChange={(event) => setSeoTitle(event.target.value)} /><Textarea label="SEO description" value={seoDescription} onChange={(event) => setSeoDescription(event.target.value)} /></section>
       </div>
-      <aside className="space-y-4 xl:sticky xl:top-6"><section className="border border-line p-4"><h3 className="mb-4 text-sm font-medium text-indigo">Live product-card preview</h3><div className="mx-auto max-w-[18rem]"><div inert aria-hidden className="pointer-events-none"><ProductCard product={preview} isNew={false} bestseller={false} merchantName={merchantName} /></div></div></section><section className="space-y-3 border border-line p-4"><Select label="Listing status" value={status} onChange={(event) => setStatus(event.target.value as Product["status"])}><option value="draft">Draft</option><option value="active">Published</option></Select><Button fullWidth loading={busy} onClick={() => save("draft")}>Save draft</Button><Button fullWidth variant="ghost" disabled={busy} onClick={() => save("active")}>Publish listing</Button><p className="caption">Only approved seller products can appear in the public catalogue.</p></section></aside>
+      <aside className="space-y-4 xl:sticky xl:top-6"><section className="border border-line p-4"><h3 className="mb-4 text-sm font-medium text-indigo">Live product-card preview</h3><div className="mx-auto max-w-[18rem]"><div inert aria-hidden className="pointer-events-none"><ProductCard product={preview} isNew={false} bestseller={false} merchantName={merchantName} /></div></div></section><section className="space-y-3 border border-line p-4"><Select label="Listing status" value={status} onChange={(event) => setStatus(event.target.value as Product["status"])}><option value="draft">Draft</option><option value="active">Published</option></Select><Button fullWidth loading={busy} onClick={() => save("draft")}>Save draft</Button><Button fullWidth variant="ghost" disabled={busy} onClick={() => save("active")}>Publish listing</Button><p className="caption">Only approved seller products can appear in the public catalogue.</p>
+      {images.length < 3 ? <p className="caption text-danger">Add {3 - images.length} more image{3 - images.length === 1 ? "" : "s"} to publish.</p> : null}</section></aside>
     </div>
   </div>;
 }

@@ -1,3 +1,8 @@
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Notifications", "/account/notifications");
+
 import { NotificationsForm } from "@/components/account/notifications-form";
 import { getSession } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";

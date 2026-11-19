@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Truck } from "lucide-react";
 import type { MerchantOrderLine, MerchantFulfilmentStatus } from "@/lib/demo-merchant-store";
-import { products } from "@/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,10 +49,9 @@ export function MerchantOrderList({ orders }: { orders: MerchantOrderLine[] }) {
       const action = nextAction[item.status];
       return <article key={item.order.id} className="border border-line bg-ivory p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium text-indigo">{item.order.orderNumber}</p><p className="caption mt-1">{formatDate(item.order.placedAt)} · {item.items.length} seller item(s)</p></div><div className="text-right"><Badge variant={item.status === "delivered" || item.status === "returned" ? "success" : item.status === "return_requested" ? "sale" : "gold"}>{item.status.replaceAll("_", " ")}</Badge><p className="mt-2 text-sm font-medium">{formatINR(item.subtotal)}</p></div></div>
-        <ul className="mt-4 divide-y divide-line border-y border-line">{item.items.map((product) => {
-          const variant = product.color && product.size ? undefined : products.find((entry) => entry.id === product.productId)?.variants.find((entry) => entry.id === product.variantId);
-          return <li key={product.variantId} className="flex flex-wrap justify-between gap-3 py-3 text-sm"><span>{product.name} · {product.color ?? variant?.color ?? "Colour"} / {product.size ?? variant?.size ?? "Size"} · Qty {product.quantity}</span><span>{formatINR(product.unitPrice * product.quantity)}</span></li>;
-        })}</ul>
+        <ul className="mt-4 divide-y divide-line border-y border-line">{item.items.map((product) => (
+          <li key={product.variantId} className="flex flex-wrap justify-between gap-3 py-3 text-sm"><span>{product.name} · {product.color ?? "Colour"} / {product.size ?? "Size"} · Qty {product.quantity}</span><span>{formatINR(product.unitPrice * product.quantity)}</span></li>
+        ))}</ul>
         <p className="caption mt-3">Estimated payout after {COMMERCE.defaultCommissionRate}% commission: {formatINR(item.payout)}{item.courier || item.awb ? ` · ${item.courier ?? "Courier"} · AWB ${item.awb ?? "pending"}` : ""}</p>
         {item.status === "packed" ? <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><Input label="Courier" value={delivery[item.order.id]?.courier ?? item.courier ?? ""} onChange={(event) => setDelivery((current) => ({ ...current, [item.order.id]: { courier: event.target.value, awb: current[item.order.id]?.awb ?? item.awb ?? "" } }))} placeholder="Courier partner" /><Input label="AWB / tracking number" value={delivery[item.order.id]?.awb ?? item.awb ?? ""} onChange={(event) => setDelivery((current) => ({ ...current, [item.order.id]: { courier: current[item.order.id]?.courier ?? item.courier ?? "", awb: event.target.value } }))} placeholder="Enter tracking number" /><Button disabled={busy === item.order.id} onClick={() => update(item.order.id, "shipped")}><Truck aria-hidden className="mr-2 size-4" />Dispatch</Button></div> : null}
         {action ? <div className="mt-4 flex flex-wrap gap-2"><Button size="sm" loading={busy === item.order.id} onClick={() => update(item.order.id, action.status)}>{action.label} <ArrowRight aria-hidden className="ml-2 size-4" /></Button>{item.status === "accepted" || item.status === "shipped" || item.status === "delivered" ? <Button size="sm" variant="ghost" disabled={busy === item.order.id} onClick={() => update(item.order.id, "return_requested")}>Record return request</Button> : null}</div> : item.status === "delivered" ? <Button size="sm" variant="ghost" className="mt-4" disabled={busy === item.order.id} onClick={() => update(item.order.id, "return_requested")}>Record return request</Button> : null}

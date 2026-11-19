@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { ProductCard } from "@/components/product/product-card";
 import { ProductFilters } from "./product-filters";
 import { useListingUrl } from "./use-listing-url";
@@ -30,6 +30,7 @@ export function ProductListing({
   categories,
   collection,
   merchant,
+  crumbs,
 }: {
   title: string;
   eyebrow: string;
@@ -41,6 +42,7 @@ export function ProductListing({
   categories: Category[];
   collection?: Collection;
   merchant?: Merchant;
+  crumbs?: Crumb[];
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const update = useListingUrl();
@@ -72,12 +74,15 @@ export function ProductListing({
 
   return (
     <main className="page-container min-h-[50dvh] py-8 md:py-12">
-      <nav aria-label="Breadcrumb" className="mb-5 text-xs text-muted">
-        <Link href="/" className="hover:text-indigo">Home</Link><span aria-hidden className="px-2">/</span>
-        <Link href="/shop" className="hover:text-indigo">Shop</Link>
-        {collection ? <><span aria-hidden className="px-2">/</span><span>{collection.name}</span></> : null}
-        {merchant ? <><span aria-hidden className="px-2">/</span><span>{merchant.name}</span></> : null}
-      </nav>
+      <Breadcrumbs
+        items={crumbs ?? [
+          { label: "Home", href: "/" },
+          { label: "Shop", href: "/shop" },
+          ...(collection ? [{ label: collection.name }] : []),
+          ...(merchant ? [{ label: merchant.name }] : []),
+        ]}
+        className="mb-5"
+      />
       <div className="mb-8 flex flex-col gap-3 border-b border-line pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">{eyebrow}</p>

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
-import { products } from "@/data";
+import type { Product } from "@/data";
 import { useWishlistStore } from "@/store/wishlist-store";
 
-export function WishlistContent() {
+export function WishlistContent({ products }: { products: Product[] }) {
   const productIds = useWishlistStore((state) => state.productIds);
   const savedProducts = productIds.map((id) => products.find((product) => product.id === id)).filter((product) => product?.status === "active");
   return savedProducts.length ? (

@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/account/onboarding-form";
 import { requireRole } from "@/lib/auth/demo-session";
 import { getDemoAccountById } from "@/lib/demo-account-store";
-import { categories } from "@/data";
+import { getAdminCategories } from "@/lib/admin-store";
+import { privateMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = privateMetadata("Set up your profile", "/onboarding");
 
 export default async function OnboardingPage() {
   const session = await requireRole(["customer"], "/onboarding");
@@ -14,7 +18,7 @@ export default async function OnboardingPage() {
       <p className="eyebrow mb-2">A small introduction</p>
       <h1 className="display-lg text-indigo">Make it yours</h1>
       <p className="mb-7 mt-3 text-sm text-muted">Three quick steps help us bring the right pieces closer. This is optional and editable later.</p>
-      <OnboardingForm categories={categories.filter((category) => category.parentId !== null)} initial={account.preferences} />
+      <OnboardingForm categories={getAdminCategories().filter((category) => category.parentId !== null)} initial={account.preferences} />
     </section>
   </main>;
 }

@@ -12,6 +12,22 @@ import { loginSchema } from "@/lib/account-schemas";
 import { toast } from "@/store/toast-store";
 
 type Values = z.input<typeof loginSchema>;
+type Role = "customer" | "merchant" | "admin";
+
+/**
+ * The `next` query param comes from a role-gated redirect, so it may point at a
+ * section the signing-in account cannot open (an admin landing on
+ * `/login?next=/account`, for example). Only honour it when the role matches;
+ * otherwise fall back to the role's home returned by the API.
+ */
+function canOpen(path: string, role: Role): boolean {
+  if (path === "/admin" || path.startsWith("/admin/")) return role === "admin";
+  if (path === "/merchant/register") return true;
+  if (path === "/merchant" || path.startsWith("/merchant/")) return role === "merchant";
+  if (path === "/account" || path.startsWith("/account/")) return role === "customer";
+  if (path === "/onboarding") return role === "customer";
+  return true;
+}
 
 export function LoginForm({ next = "" }: { next?: string }) {
   const router = useRouter();
@@ -28,10 +44,15 @@ export function LoginForm({ next = "" }: { next?: string }) {
     setServerError("");
     try {
       const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...values, method }) });
-      const result = await response.json() as { error?: string; next?: string };
+      const result = await response.json() as { error?: string; next?: string; role?: Role };
       if (!response.ok) { setServerError(result.error ?? "Sign in was unsuccessful."); return; }
+      const fallback = result.next ?? "/account";
+      const requested = next.startsWith("/") && !next.startsWith("//") ? next : "";
+      const target = requested && requested !== "/login" && (!result.role || canOpen(requested, result.role))
+        ? requested
+        : fallback;
       toast.success("You are signed in");
-      router.push(next.startsWith("/") && !next.startsWith("//") ? next : result.next ?? "/account");
+      router.push(target);
       router.refresh();
     } catch (error) {
       console.error("Demo sign-in failed.", error);
@@ -68,7 +89,6 @@ export function LoginForm({ next = "" }: { next?: string }) {
         <Button type="button" variant="ghost" disabled title="Social sign-in is not connected">Apple (soon)</Button>
       </div>
       {identifier ? <p className="sr-only" aria-live="polite">Signing in with the selected {method} option.</p> : null}
-      <p className="caption text-center">Demo accounts use password <strong>Demo123!</strong>. Do not use real credentials.</p>
     </form>
   );
 }

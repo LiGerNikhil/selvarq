@@ -6,9 +6,9 @@ import { ChevronDown, ChevronRight, Menu } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { Sheet } from "@/components/ui/sheet";
-import { categories, collections } from "@/data";
+import type { Category, Collection } from "@/data";
 
-export function MobileMenu() {
+export function MobileMenu({ categories, collections }: { categories: Category[]; collections: Collection[] }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const roots = categories.filter((category) => category.parentId === null);
